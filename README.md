@@ -160,8 +160,8 @@ for i in range(len(q_rows)):
             qval.append(q_data[i][j])
 ```
 #### 3.Mkv_optimize.py
-&emsp;&emsp;关于优化器具体使用，不在此赘述；当前版本设计优化的代码遵照MOSEK官方文档的一般格式，可以浏览该API文件：[MOSEK optimiser api for Python](src/Mosek optimiser api for Python.pdf)
-
+&emsp;&emsp;关于优化器具体使用，不在此赘述；当前版本设计优化的代码遵照MOSEK官方文档的一般格式，可以浏览该API文件：[MOSEK optimiser api for Python](Winfor-Mkv/src/MOSEK optimiser api for Python.pdf)。
+      
 
 
 
