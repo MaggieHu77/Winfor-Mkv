@@ -1,6 +1,4 @@
 # Winfor-Mkv
-<<<<<<< HEAD
-=======
 &emsp;&emsp;Mkv是为给定条件下，进行股票资产权重优化的计算而开发的python程序，理论基础是马尔科维茨的组合优化理论，适用于Windows 7及以上版本，Mac及Linus用户需要从源码进行重新打包，不能够直接运行`Mkv_start.exe`。
 ### 主要构成：
 + **数据来源**：Wind提供的量化API，用户需要安装机构版Wind，并修复Python接口插件
@@ -74,7 +72,7 @@ g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Ent
 + **sheet2:{num_d}-days mean returns**：第一列code，表示股票代码；第二列name表示股票简称；第三列mu表示本次计算中，各股票在`calc_time`时点前`num_d`个交易日期间的收益率均值。用于检测优化结果。
 + **sheet3:covariance**：第一列code，表示股票代码；第二列name表示股票简称；之后列为在`calc_time`时点前`num_d`个交易日期间股票的协方差矩阵。
 ---
-###开发者说明
+### 开发者说明
 &emsp;&emsp;当前程序运行需要python3.6及以上版本，其他python3版本需要修改字符串`f'{var}'`为`{}.format{var}`。Project包含5个.py文件，main函数入口在`Mkv_start.py`。Project运行需要载入以下packages: *configparser*, *os*, *openpyxl*, *xlrd*, *datetime*, *WindPy*, *numpy*, *re*, *time*, *dateutil*, *calendar*, *scipy*, *mosek*。
 #### 1.Mkv_start.py
 &emsp;&emsp;运行程序，创建`Manage`对象`m=Manage()`，`__init__()`函数将执行参数默认赋值以及参数文件的`configParam_mkv.conf`的创建及读取工作，并提示用户输入参数并保存。
@@ -91,11 +89,11 @@ code_file =
 work_file =
 
 [constraints]
-mode = 
+mode =
 vol =
-short = 
-max_weight = 
-cash_return = 
+short =
+max_weight =
+cash_return =
 
 [calculation]
 calc_time =
@@ -114,8 +112,62 @@ end_time =
 + `Manage.set_cash_return`设置现金的年化无风险收益率，默认是0.0。如果无需更改之前的设定，可以Enter跳过。
 + `Manage.set_num_d`设置用于估计股票两阶矩信息的样本长度，==注意当前版本对未上市股票及停牌股票的收益率观察值都是0.0，后续开发需要注意辨别股票是否可进行交易的条件判定==。。如果无需更改之前的设定，可以Enter跳过。
 + `Manage.set_short`设置做空约束，`short=1`允许做空，`short=0`不允许做空。
-+ `Manage.read_codes`从文件中读取股票代码。调用`Mkv_start.read_codes(f)`读取文件，==注意当前版本，仅支持`.txt .xls .xlsx`格式的输入文件，之后开发可以进行更广泛的扩展；并且当前版本中并没有添加对于输入合法性的检测，如果出现类似输入错误，eg. 60519.SH，正确应该为600519.SH；会在之后引发错误==。
-+ `Manage.set_params1`
-
-
->>>>>>> 66215c178208a15d7e82d726f2c9da9db8b53961
++ `Manage.read_codes`从文件中读取股票代码。调用`Mkv_start.read_codes(f)`读取文件，==注意当前版本，仅支持.txt .xls .xlsx格式的输入文件，之后开发可以进行更广泛的扩展；并且当前版本中并没有添加对于输入合法性的检测，如果出现类似输入错误，eg. 60519.SH，正确应该为600519.SH；会在之后引发错误==。
++ `Manage.run_optimizer`根据运行模式的设定，决定调用`Manage.set_param{1,2}`的时间。
++ `Manage.set_params1`在`mode=1`下运行，内部调用`Mkv_data2.create_stocks, Mkv_data2.calc_params, Mkv_optimize2.optimizer`进行创建股票对象、计算均值、协方差参数和进行优化的工作，并调用`Manage.write_output1`将返回的各资产包含现金的权重和相关参数写入输出文件中。
++ `Manage.set_params2`在`mode=2`下运行，内部调用`Mkv_data2.create_stocks, Mkv_data2.calc_params, Mkv_optimize2.optimizer`进行创建股票对象、计算均值、协方差参数和进行优化的工作，并调用`Manage.write_output2`将返回的各资产包含现金的权重和相关参数写入输出文件中。
++ `Manage.get_backtest_t_seq`根据设定的回测区间返回区间内各个月，调用`WindPy.w.tdays`获取月末日期
+```python
+end_m = (datetime(*map(int, self.end_t.split("-")), 1) + relativedelta(months=1)).strftime("%Y-%m")
+self.t_seq = w.tdays(self.start_t, end_m, "Period=M").Data[0]
+self.t_seq = [t.strftime("%Y-%m-%d") for t in self.t_seq]
+```
++ `Manage.write_output1`在`mode=1`下，将回测结果和回测产生的中间数据写入.xlsx文件。
++ `Manage.write_output2`在`mode=2`下，将回测结果和回测产生的中间数据写入.xlsx文件。
+#### 2.Mkv_data2.py
+&emsp;&emsp;完成从数据库中提取数据并在进行优化前进行数据的预处理。文件定义了`Stock`类，该类对象包含5个fields：`code`表示股票代码，`name`表示股票简称，`mkt`表示股票交易所，`r`表示日收益率list，`t`表示收益率序列的timestamp字符串list，格式为yyyy-mm-dd。该类对象作为储存股票raw data信息的数据对象。
++ `Mkv_data2.ceate_stocks(codes, num_d, end=datetime.now().strftime("%Y-%m-%d"), q=True)`其中参数`codes`表示股票代码字符串list，`num_d`即为设定的样本数据时长，`end`为本批样本数据结束时间，`q`为是否是在盘中提取数据，如果是盘中提取数据，会调用`WindPy.w.wsq`提取当前收益率数据，否则调用`WindPy.w.wsd`提取历史日度收益率数据。返回值为以Stock对象为元素的list。
++ `Mkv_data2.calc_params(stocks, short)`参数`stocks`接受以Stock对象作为元素的list或其他可迭代对象，`short`为布尔类型变量，指示做空约束条件。该函数用于计算股票的平均收益率，协方差矩阵，检验协方差矩阵的半正定性并进行必要的修正，将“修正后”的协方差矩阵转化为稀疏矩阵并按照非0元素的行列坐标储存其值。
+```python
+mtx_r = [s.r for s in stocks]
+mu = list(np.mean(mtx_r, axis=1).round(4))
+cov = np.cov(mtx_r)
+```
+将list类型进行numpy.array类型的转换。如果是允许做空，还需要计算其扩展协方差矩阵并检验其正定性，检验方法是对其进行谱分解并判断是否有负特征值。
+```python
+# 如果不通过正定性检验，需要进行remedy
+cov1 = np.cov(np.concatenate((np.array(mtx_r),
+-np.array(mtx_r))))
+# 检验半正定性
+eig1 = np.linalg.eigvals(cov1)
+issd1 = bool(np.all(eig1 >= 0))
+print("风险资产扩展矩阵是否半正定?" + str(issd1))
+if not issd1:
+    cov_pd = nearestPD(cov1)
+```
+将通过检验或修正后的协方差矩阵转化为稀疏矩阵并提取其下三角矩阵（因为对称性，可以只储存其一半信息）的行列坐标和值。
+```python
+q = lil_matrix(cov_pd)
+q_data = q.data
+q_rows = q.rows
+qsubi = []
+qsubj = []
+qval = []
+for i in range(len(q_rows)):
+    for j in range(len(q_rows[i])):
+        if q_rows[i][j] <= i:
+            qsubi.append(i)
+            qsubj.append(q_rows[i][j])
+            qval.append(q_data[i][j])
+```
+#### 3.Mkv_optimize.py
+&emsp;&emsp;关于优化器具体使用，不在此赘述；当前版本设计优化的代码遵照MOSEK官方文档的一般格式，可以浏览该API文件：[MOSEK optimiser api for Python](https://github.com/MaggieHu77/Winfor-Mkv/blob/master/src/MOSEK%20optimiser%20api%20for%20Python.pdf)。
+#### 4.Mkv_constant.py
+&emsp;&emsp;定义了默认参数，将在用户输入部分失效的时候起作用。版本号，用于记录及后续更新。
+#### 5.建议
+##### 5.1重新打包
+&emsp;&emsp;完成新版本后的执行程序打包：cmd > `pip install pyinstaller`
+进入项目所在文件夹> `cd directory/Mkv`
+执行打包程序>`pyinstaller -F -c Mkv_start.py`生成`Mkv_start.exe`文件在`/directory/Mkv/dist/`文件夹下。
+##### 5.2 README
+&emsp;&emsp;不推荐在github上浏览README.md文件，鉴于其markdown浏览无法很好显示LaTex风格的数学公式。Atom对于Markdown的支持十分强大，通过`apm install markdown-preview-enhanced`插件下载，在编辑.md文件的时候可以实时浏览。在导出Markdown文件为其他格式时，可以通过`apm install -g puppeteer`插件将其另存为.pdf等格式。本文档推荐阅读pdf版本。
