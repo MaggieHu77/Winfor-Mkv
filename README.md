@@ -1,6 +1,5 @@
 # Winfor-Mkv
-<<<<<<< HEAD
-=======
+---
 &emsp;&emsp;Mkv是为给定条件下，进行股票资产权重优化的计算而开发的python程序，理论基础是马尔科维茨的组合优化理论，适用于Windows 7及以上版本，Mac及Linus用户需要从源码进行重新打包，不能够直接运行`Mkv_start.exe`。
 ### 主要构成：
 + **数据来源**：Wind提供的量化API，用户需要安装机构版Wind，并修复Python接口插件
