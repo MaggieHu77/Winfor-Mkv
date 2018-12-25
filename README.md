@@ -89,11 +89,11 @@ code_file =
 work_file =
 
 [constraints]
-mode = 
+mode =
 vol =
-short = 
-max_weight = 
-cash_return = 
+short =
+max_weight =
+cash_return =
 
 [calculation]
 calc_time =
@@ -136,7 +136,8 @@ cov = np.cov(mtx_r)
 将list类型进行numpy.array类型的转换。如果是允许做空，还需要计算其扩展协方差矩阵并检验其正定性，检验方法是对其进行谱分解并判断是否有负特征值。
 ```python
 # 如果不通过正定性检验，需要进行remedy
-cov1 = np.cov(np.concatenate((np.array(mtx_r), -np.array(mtx_r))))
+cov1 = np.cov(np.concatenate((np.array(mtx_r),
+-np.array(mtx_r))))
 # 检验半正定性
 eig1 = np.linalg.eigvals(cov1)
 issd1 = bool(np.all(eig1 >= 0))
@@ -161,7 +162,12 @@ for i in range(len(q_rows)):
 ```
 #### 3.Mkv_optimize.py
 &emsp;&emsp;关于优化器具体使用，不在此赘述；当前版本设计优化的代码遵照MOSEK官方文档的一般格式，可以浏览该API文件：[MOSEK optimiser api for Python](https://github.com/MaggieHu77/Winfor-Mkv/blob/master/src/MOSEK%20optimiser%20api%20for%20Python.pdf)。
-      
-
-
-
+#### 4.Mkv_constant.py
+&emsp;&emsp;定义了默认参数，将在用户输入部分失效的时候起作用。版本号，用于记录及后续更新。
+#### 5.建议
+##### 5.1重新打包
+&emsp;&emsp;完成新版本后的执行程序打包：cmd > `pip install pyinstaller`
+进入项目所在文件夹> `cd directory/Mkv`
+执行打包程序>`pyinstaller -F -c Mkv_start.py`生成`Mkv_start.exe`文件在`/directory/Mkv/dist/`文件夹下。
+##### 5.2 README
+&emsp;&emsp;不推荐在github上浏览README.md文件，鉴于其markdown浏览无法很好显示LaTex风格的数学公式。Atom对于Markdown的支持十分强大，通过`apm install markdown-preview-enhanced`插件下载，在编辑.md文件的时候可以实时浏览。在导出Markdown文件为其他格式时，可以通过`apm install -g puppeteer`插件将其另存为.pdf等格式。本文档推荐阅读pdf版本。
