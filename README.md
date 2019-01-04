@@ -1,5 +1,5 @@
 # Winfor-Mkv
-<script type="text/javascript" async src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+
 <font face="微软雅黑" size=2>**写在前面**：如果您正在使用github浏览本markdown文件，本文件中的数学公式渲染可能不能正常显示。推荐使用Chrome浏览器，并在Chrome的应用商店，下载[MathJax Plugin for Github](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima/related)插件。</font>
 
 
@@ -28,7 +28,8 @@
 + $\sigma$：组合年化标准差上限
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
-$$ z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $$
+
+\begin{center}$ z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $\end{center}
 &emsp;&emsp;这个二次规划问题的数学表达为：
 $$ max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i $$
 $$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
@@ -175,4 +176,3 @@ for i in range(len(q_rows)):
 执行打包程序>`pyinstaller -F -c Mkv_start.py`生成`Mkv_start.exe`文件在`/directory/Mkv/dist/`文件夹下。
 ##### 5.2 README
 &emsp;&emsp;不推荐在github上浏览README.md文件，鉴于其markdown浏览无法很好显示LaTex风格的数学公式。Atom对于Markdown的支持十分强大，通过`apm install markdown-preview-enhanced`插件下载，在编辑.md文件的时候可以实时浏览。在导出Markdown文件为其他格式时，可以通过`apm install -g puppeteer`插件将其另存为.pdf等格式。本文档推荐阅读pdf版本。
- </script>
