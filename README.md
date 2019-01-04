@@ -26,12 +26,12 @@
 + $\sigma$：组合年化标准差上限
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
-$$z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c$$
+$$ z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $$
 &emsp;&emsp;这个二次规划问题的数学表达为：
-$$max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i$$
-$$s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1$$
-$$\frac{1}{2}\boldsymbol{\omega}^TM\boldsymbol{\omega}\le\frac{\sigma}{2\sqrt{N^{td}}}$$
-$$\vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\}$$
+$$ max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i $$
+$$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
+$$ \frac{1}{2}\boldsymbol{\omega}^TM\boldsymbol{\omega}\le\frac{\sigma}{2\sqrt{N^{td}}} $$
+$$ \vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\} $$
 &emsp;&emsp;需要提示的是，正则化条件要求特征向量$\boldsymbol{\lambda}$所有分量非负，否则 $\boldsymbol{M}$不满足半正定条件，此时采用`nearPD.nearestPD()`求出$\boldsymbol{M}$的“最近半正定矩阵”代替。
 &emsp;&emsp;非半正定协方差矩阵在本例中不会产生于只能做多`short=0`的约束下，但如果允许做空`short=1`，由于MOSEK的优化器表达不允许非线性的绝对值形式约束，因此需要将$\sum_{i=1}^{n}\vert\omega_i\vert\le1$进行先行改写。重定义资产$i$的权重：
 + $\omega_i^+$：持有资产$i$的多头净权重
