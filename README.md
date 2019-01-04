@@ -19,7 +19,7 @@
 &emsp;&emsp;首先说明变量与记号便于模型构建与理解。
 + $r_{it}$：资产$i$在第$t$日的日收益率
 + $c_t$：第$t$日的现金收益率，一般设定为常数$c$
-+ $\bar{x}_i$：资产$i$样本内日均收益率，$\bar{x}_i=\sum_{t=1}^{T}r_{it}$
++ $ \bar{x}_i $：资产$i$样本内日均收益率，$\bar{x}_i=\sum_{t=1}^{T}r_{it}$
 + $\boldsymbol{M}$：资产集合$S$样本协方差
 + $\boldsymbol{Q}$：$\boldsymbol{M}$的特征向量矩阵
 + $\boldsymbol{\lambda}$：$\boldsymbol{M}$的特征值向量，所以有$\boldsymbol{M}=\boldsymbol{Q}\boldsymbol{\lambda}\boldsymbol{Q}^T$
@@ -29,7 +29,7 @@
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
 
-\begin{center}$ z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $\end{center}
+\begin{center} \begin{equation} z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $\end{equation} \end{center}
 &emsp;&emsp;这个二次规划问题的数学表达为：
 $$ max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i $$
 $$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
