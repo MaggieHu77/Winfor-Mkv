@@ -19,7 +19,7 @@
 &emsp;&emsp;首先说明变量与记号便于模型构建与理解。
 + $r_{it}$：资产$i$在第$t$日的日收益率
 + $c_t$：第$t$日的现金收益率，一般设定为常数$c$
-+ $ \bar{x}_i $：资产$i$样本内日均收益率，$\bar{x}_i=\sum_{t=1}^{T}r_{it}$
++ $\bar{x}\_i$：资产$i$样本内日均收益率，$\bar{x}_i=\sum_{t=1}^{T}r_{it}$
 + $\boldsymbol{M}$：资产集合$S$样本协方差
 + $\boldsymbol{Q}$：$\boldsymbol{M}$的特征向量矩阵
 + $\boldsymbol{\lambda}$：$\boldsymbol{M}$的特征值向量，所以有$\boldsymbol{M}=\boldsymbol{Q}\boldsymbol{\lambda}\boldsymbol{Q}^T$
@@ -28,14 +28,11 @@
 + $\sigma$：组合年化标准差上限
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
+ 
+$$z=\sum_{i=1}^{n}\bar{x}\_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}\_i-c)\omega_i+c$$
 
-\begin{center} 
-\begin{equation} 
-z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c
-\end{equation} 
-\end{center}
 &emsp;&emsp;这个二次规划问题的数学表达为：
-$$ max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i $$
+$$ max \sum_{i=1}^{n}(\bar{x}\_i-c)\omega_i $$
 $$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
 $$ \frac{1}{2}\boldsymbol{\omega}^TM\boldsymbol{\omega}\le\frac{\sigma}{2\sqrt{N^{td}}} $$
 $$ \vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\} $$
@@ -43,11 +40,11 @@ $$ \vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\} $$
 &emsp;&emsp;非半正定协方差矩阵在本例中不会产生于只能做多`short=0`的约束下，但如果允许做空`short=1`，由于MOSEK的优化器表达不允许非线性的绝对值形式约束，因此需要将$\sum_{i=1}^{n}\vert\omega_i\vert\le1$进行先行改写。重定义资产$i$的权重：
 + $\omega_i^+$：持有资产$i$的多头净权重
 + $\omega_i^-$：持有资产$i$的空头净权重
-因此有$\omega_i=\omega_i^+-\omega_i^-$以及$\vert\omega_i\vert=\omega_i^++\omega_i^-$。将资产$i$的空头视作是另一个对偶资产$i'$，与资产$i$的收益率相关系数为-1，$r_{it}=-r_{i't}$。扩展的协方差矩阵$M'\in\mathbb{R}_{2n\times2n}$不再是正定的，因此需要采用`nearestPD()`进行修正。
+因此有$\omega_i=\omega_i^+-\omega_i^-$以及$\vert\omega_i\vert=\omega_i^++\omega_i^-$。将资产$i$的空头视作是另一个对偶资产$i'$，与资产$i$的收益率相关系数为-1，$r_{it}=-r_{i't}$。扩展的协方差矩阵$M'\in\mathbb{R}\_{2n\times2n}$不再是正定的，因此需要采用`nearestPD()`进行修正。
 ---
 ### 用户须知
 #### 1.文件及配置
-&emsp;&emsp;用户使用本程序，可直接运行`Mkv_start.exe`可执行程序，不需要本地python环境，但是部分支持文件需要仔细配置。
+&emsp;&emsp;用户使用本程序，可直接运行`Mkv_start.exe`可执行程序，不需要本地python环境，但是部分支持文件需要仔细配置。  
 a. 下载`Mkv_start.exe`到本地任意路径 ./directory/Mkv  
 b. 在同一文件夹下，新建`WindPy.pth`文件，并在文件中写入本机Wind安装地址，例如`C:\Wind\Wind.NET.Client\WindNET\x64`  
 c. 将`mosek.lic`证书文件放置在此文件夹下  
@@ -56,28 +53,17 @@ e. 在`.txt .xls .xlsx`文件中，第一列写入需要进行回测的Wind股�
 f. (可选做)下载configParam_mkv.conf到./directory/Mkv，直接在文件中修改对应的参数，注意注释中的解释和格式要求，并保存。  
 g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Enter跳过参数设置的步骤；如果您没有进行f.且是初次运行，那么您需要根据指示依次输入参数；如果您之前运行过程序，可以仅修改您需要更新的参数，其他部分可以跳过。  
 #### 2.参数释义
-**code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls
-
-**work_file**:程序输出到的文件夹地址
-
-**mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1`
-
-**vol**：组合年化波动率上限，浮点数类型，eg 0.15，表示15%
-
-**short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多
-
-**max_weight**：单股最大绝对值权重，浮点数类型
-
-**cash_return**：年化现金收益率，浮点数类型
-
+**code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls  
+**work_file**:程序输出到的文件夹地址  
+**mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1 `
+**vol**：组合年化波动率上限，浮点数类型，eg 0.15，表示15%  
+**short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多  
+**max_weight**：单股最大绝对值权重，浮点数类型  
+**cash_return**：年化现金收益率，浮点数类型  
 **calc_time**：在`mode=2`下被调用，表示程序计算部分运行时间。期望是当日交易时间，如果早于当前，那么程序即刻运行，实际以当前时间为`calc_time`；如果晚于当前，那么等待至定时运行主程序。如果早于当日，那么认为是对自定义时点的单次回测；如果晚于当日日期，默认立即执行。输入请遵循格式yyyy-mm-dd HH:MM:SS, eg. 2018-12-10 10:20:00  
-
-**num_d**：用于回测的交易日长度
-
-**start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。
-
-**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。
-
+**num_d**：用于回测的交易日长度  
+**start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。  
+**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。  
 #### 3.输出结果解释
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
 ##### 3.1*back-test*模式
