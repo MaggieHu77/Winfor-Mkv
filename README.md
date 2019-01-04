@@ -29,7 +29,11 @@
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
 
-\begin{center} \begin{equation} z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c $\end{equation} \end{center}
+\begin{center} 
+\begin{equation} 
+z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c
+\end{equation} 
+\end{center}
 &emsp;&emsp;这个二次规划问题的数学表达为：
 $$ max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i $$
 $$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
@@ -44,25 +48,36 @@ $$ \vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\} $$
 ### 用户须知
 #### 1.文件及配置
 &emsp;&emsp;用户使用本程序，可直接运行`Mkv_start.exe`可执行程序，不需要本地python环境，但是部分支持文件需要仔细配置。
-a. 下载`Mkv_start.exe`到本地任意路径 ./directory/Mkv
-b. 在同一文件夹下，新建`WindPy.pth`文件，并在文件中写入本机Wind安装地址，例如`C:\Wind\Wind.NET.Client\WindNET\x64`
-c. 将`mosek.lic`证书文件放置在此文件夹下
-d. 进入Wind界面，在量化接口中修复python插件
-e. 在`.txt .xls .xlsx`文件中，第一列写入需要进行回测的Wind股票代码
-f. (可选做)下载configParam_mkv.conf到./directory/Mkv，直接在文件中修改对应的参数，注意注释中的解释和格式要求，并保存。
-g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Enter跳过参数设置的步骤；如果您没有进行f.且是初次运行，那么您需要根据指示依次输入参数；如果您之前运行过程序，可以仅修改您需要更新的参数，其他部分可以跳过。
+a. 下载`Mkv_start.exe`到本地任意路径 ./directory/Mkv  
+b. 在同一文件夹下，新建`WindPy.pth`文件，并在文件中写入本机Wind安装地址，例如`C:\Wind\Wind.NET.Client\WindNET\x64`  
+c. 将`mosek.lic`证书文件放置在此文件夹下  
+d. 进入Wind界面，在量化接口中修复python插件  
+e. 在`.txt .xls .xlsx`文件中，第一列写入需要进行回测的Wind股票代码  
+f. (可选做)下载configParam_mkv.conf到./directory/Mkv，直接在文件中修改对应的参数，注意注释中的解释和格式要求，并保存。  
+g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Enter跳过参数设置的步骤；如果您没有进行f.且是初次运行，那么您需要根据指示依次输入参数；如果您之前运行过程序，可以仅修改您需要更新的参数，其他部分可以跳过。  
 #### 2.参数释义
 **code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls
+
 **work_file**:程序输出到的文件夹地址
+
 **mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1`
+
 **vol**：组合年化波动率上限，浮点数类型，eg 0.15，表示15%
+
 **short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多
+
 **max_weight**：单股最大绝对值权重，浮点数类型
+
 **cash_return**：年化现金收益率，浮点数类型
+
 **calc_time**：在`mode=2`下被调用，表示程序计算部分运行时间。期望是当日交易时间，如果早于当前，那么程序即刻运行，实际以当前时间为`calc_time`；如果晚于当前，那么等待至定时运行主程序。如果早于当日，那么认为是对自定义时点的单次回测；如果晚于当日日期，默认立即执行。输入请遵循格式yyyy-mm-dd HH:MM:SS, eg. 2018-12-10 10:20:00  
+
 **num_d**：用于回测的交易日长度
+
 **start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。
+
 **end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。
+
 #### 3.输出结果解释
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
 ##### 3.1*back-test*模式
