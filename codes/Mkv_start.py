@@ -200,8 +200,8 @@ class Manage:
             if freq:
                 self.frequency = freq
         else:
-            assert isinstance(freq, str) and freq.upper() in ["M", "W", "D"], \
-                "输入回测频率'%s'不支持" % freq
+            assert isinstance(freq_input, str) and freq_input.upper() in ["M", "W", "D"], \
+                "输入回测频率'%s'不支持" % freq_input
             self.frequency = freq_input
             self.conf.set("calculation", "frequency", freq_input)
 
