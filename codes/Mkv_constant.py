@@ -23,8 +23,8 @@ DEFAULT_END_T = "2017-12"
 DEFAULT_UP = float("inf")
 # 重要参数字典
 CONF_DICT = {"dir": ["code_file", "work_file"],
-             "constraints": ["vol", "short", "max_weight", "cash_return"],
-             "calculation": ["calc_time", "num_d", "start_time", "end_time"]}
+             "constraints": ["mode", "vol", "short", "max_weight", "cash_return"],
+             "calculation": ["calc_time", "num_d", "start_time", "end_time", "frequency"]}
 # configue参数配置文件名
 CONF_NAME = "configParam_mkv.conf"
 # 文件地址为空错误信息
