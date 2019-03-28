@@ -1,8 +1,4 @@
 # Winfor-Mkv
-
-<font face="微软雅黑" size=2>**写在前面**：如果您正在使用github浏览本markdown文件，本文件中的数学公式渲染可能不能正常显示。推荐使用Chrome浏览器，并在Chrome的应用商店，下载[MathJax Plugin for Github](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima/related)插件。</font>
-
-
 &emsp;&emsp;Mkv是为给定条件下，进行股票资产权重优化的计算而开发的python程序，理论基础是马尔科维茨的组合优化理论，适用于Windows 7及以上版本，Mac及Linus用户需要从源码进行重新打包，不能够直接运行`Mkv_start.exe`。
 ### 主要构成：
 + **数据来源**：Wind提供的量化API，用户需要安装机构版Wind，并修复Python接口插件
@@ -14,12 +10,14 @@
 作为估计股票集合$S$日平均收益率向量$\boldsymbol{\mu}$和日收益率协方差矩阵$\boldsymbol{M}$的样本数据。
 + [X] 支持部分约束：做空约束，组合年化波动率上限约束，单股最大绝对值权重约束。在约束条件下，最大化组合期望收益率。
 + [X] *real-time* `mode=2`：根据前$l$个交易日股票集合的收益率数据，优化结果$\boldsymbol{\omega}$作为下期持仓的建议。
-+ [X] *back-test* `mode=1`：根据设定的开始时间`start-time (yyyy-mm)`和结束时间`end_time (yyyy-mm)`提取区间内的月末交易日日期$d_p,p\in\{1,2,...,P\}$，在每个月末时点上以前$l$个交易日的股票集合日收益率数据估计最优权重$\boldsymbol{\omega_p}$，并以此作为持仓权重持有资产至下月末$d_{p+1}$。在回测期内，将得到从第$2$月到第$P+1$月的模拟组合收益率。
++ [X] *back-test* `mode=1`：根据设定的开始时间`start-time (yyyy-mm)`和结束时间`end_time (yyyy-mm)`提取区间内的月末交易日日期$d_p,p\in\{1,2,...,P\}$，在每个月末时点上以前$l$个交易日的股票集合日收益率数据估计最优权重$\boldsymbol{\omega_p}$，并以此作为持仓权重持有资产至下月末$d_{p+1}$。在回测期内，将得到从第$2$月到第$P+1$月的模拟组合收益率。<font color="red">新版本支持不同频率（日、周、月）三个频率上做的回测功能。</font>
++ [ ] 实现条件选股功能，在全局环境`global_spec`（依靠WindPy API支持，当前对A股市场支持最好。__TODO__：考虑其他交易所的数据可靠性和来源。）环境下，根据股票的基本面条件（依靠WindPy API支持：$P/E$, $ROE$等）初步筛选符合条件的股票，并且在GICS二级行业分类（`ics`:_industry classification standard，可选变量，默认为GICS_）内按照初筛股票的市值（`ics_fv`:_ics filter variable_，可选，目前锁死为有限可选内的变量，默认为市值;__TODO__:提供可进一步选择行业内筛选变量的）降序排列后取前4（`ics_rank`:_ics rank_，取行业内前排位的股票进入待配股票池，当前仅支持行业均配。__TODO__：考虑行业本身规模，以及其他选择子行业内股票数量的方法）
+
 #### 模型说明：
 &emsp;&emsp;首先说明变量与记号便于模型构建与理解。
 + $r_{it}$：资产$i$在第$t$日的日收益率
 + $c_t$：第$t$日的现金收益率，一般设定为常数$c$
-+ $\bar{x}\_i$：资产$i$样本内日均收益率，$\bar{x}\_i=\sum_{t=1}^{T}r_{it}$
++ $\bar{x}_i$：资产$i$样本内日均收益率，$\bar{x}_i=\sum_{t=1}^{T}r_{it}$
 + $\boldsymbol{M}$：资产集合$S$样本协方差
 + $\boldsymbol{Q}$：$\boldsymbol{M}$的特征向量矩阵
 + $\boldsymbol{\lambda}$：$\boldsymbol{M}$的特征值向量，所以有$\boldsymbol{M}=\boldsymbol{Q}\boldsymbol{\lambda}\boldsymbol{Q}^T$
@@ -28,50 +26,83 @@
 + $\sigma$：组合年化标准差上限
 + $N^{td}$：每年交易日天数
 + $z$：目标函数，组合期望收益率
- 
-$$z=\sum_{i=1}^{n}\bar{x}\_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}\_i-c)\omega_i+c$$
-
+$$z=\sum_{i=1}^{n}\bar{x}_i\omega_i+(1-\sum_{i=1}^{n}\omega_i)c=\sum_{i=1}^{n}(\bar{x}_i-c)\omega_i+c$$
 &emsp;&emsp;这个二次规划问题的数学表达为：
-$$ max \sum_{i=1}^{n}(\bar{x}\_i-c)\omega_i $$
-$$ s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1 $$
-$$ \frac{1}{2}\boldsymbol{\omega}^TM\boldsymbol{\omega}\le\frac{\sigma}{2\sqrt{N^{td}}} $$
-$$ \vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\} $$
+$$max \sum_{i=1}^{n}(\bar{x}_i-c)\omega_i$$
+$$s.t.  \sum_{i=1}^{n}\vert\omega_i\vert\le1$$
+$$\frac{1}{2}\boldsymbol{\omega}^TM\boldsymbol{\omega}\le\frac{\sigma}{2\sqrt{N^{td}}}$$
+$$\vert\omega_i\vert\le u_i, for i\in\{1,2,...,n\}$$
 &emsp;&emsp;需要提示的是，正则化条件要求特征向量$\boldsymbol{\lambda}$所有分量非负，否则 $\boldsymbol{M}$不满足半正定条件，此时采用`nearPD.nearestPD()`求出$\boldsymbol{M}$的“最近半正定矩阵”代替。
 &emsp;&emsp;非半正定协方差矩阵在本例中不会产生于只能做多`short=0`的约束下，但如果允许做空`short=1`，由于MOSEK的优化器表达不允许非线性的绝对值形式约束，因此需要将$\sum_{i=1}^{n}\vert\omega_i\vert\le1$进行先行改写。重定义资产$i$的权重：
 + $\omega_i^+$：持有资产$i$的多头净权重
 + $\omega_i^-$：持有资产$i$的空头净权重
-因此有$\omega_i=\omega_i^+-\omega_i^-$以及$\vert\omega_i\vert=\omega_i^++\omega_i^-$。将资产$i$的空头视作是另一个对偶资产$i'$，与资产$i$的收益率相关系数为-1，$r_{it}=-r_{i't}$。扩展的协方差矩阵$M'\in\mathbb{R}\_{2n\times2n}$不再是正定的，因此需要采用`nearestPD()`进行修正。
+因此有$\omega_i=\omega_i^+-\omega_i^-$以及$\vert\omega_i\vert=\omega_i^++\omega_i^-$。将资产$i$的空头视作是另一个对偶资产$i'$，与资产$i$的收益率相关系数为-1，$r_{it}=-r_{i't}$。扩展的协方差矩阵$M'\in\mathbb{R}_{2n\times2n}$不再是正定的，因此需要采用`nearestPD()`进行修正。
 ---
 ### 用户须知
 #### 1.文件及配置
-&emsp;&emsp;用户使用本程序，可直接运行`Mkv_start.exe`可执行程序，不需要本地python环境，但是部分支持文件需要仔细配置。  
-a. 下载`Mkv_start.exe`到本地任意路径 ./directory/Mkv  
-b. 在同一文件夹下，新建`WindPy.pth`文件，并在文件中写入本机Wind安装地址，例如`C:\Wind\Wind.NET.Client\WindNET\x64`  
-c. 将`mosek.lic`证书文件放置在此文件夹下  
-d. 进入Wind界面，在量化接口中修复python插件  
-e. 在`.txt .xls .xlsx`文件中，第一列写入需要进行回测的Wind股票代码  
-f. (可选做)下载configParam_mkv.conf到./directory/Mkv，直接在文件中修改对应的参数，注意注释中的解释和格式要求，并保存。  
-g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Enter跳过参数设置的步骤；如果您没有进行f.且是初次运行，那么您需要根据指示依次输入参数；如果您之前运行过程序，可以仅修改您需要更新的参数，其他部分可以跳过。  
+&emsp;&emsp;用户使用本程序，可直接运行`Mkv_start.exe`可执行程序，不需要本地python环境，但是部分支持文件需要仔细配置。
+a. 下载`Mkv_start.exe`到本地任意路径 ./directory/Mkv
+b. 在同一文件夹下，新建`WindPy.pth`文件，并在文件中写入本机Wind安装地址，例如`C:\Wind\Wind.NET.Client\WindNET\x64`
+c. 将`mosek.lic`证书文件放置在此文件夹下
+d. 进入Wind界面，在量化接口中修复python插件
+e. 如果选择通过文件输入待回测或实盘组合优化的股票代码，请在`.txt .xls .xlsx`文件中，第一列写入需要进行回测的Wind股票代码
+f. 下载`configParam_mkv.conf`到./directory/Mkv，直接在文件中修改对应的参数，注意注释中的解释和格式要求，并保存。
+g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`读入策略所需要的所有参数，输入参数不符合规范将导致程序报错。各个参数的释义及支持范围、填写格式请见“2.参数释义”部分。一个完整的`configParam_mkv.conf`文件填写实例请见"开发者说明-1.Mkv_main.py中的填写示例"
 #### 2.参数释义
-**code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls  
-**work_file**:程序输出到的文件夹地址  
-**mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1 `
-**vol**：组合年化波动率上限，浮点数类型，eg 0.15，表示15%  
-**short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多  
-**max_weight**：单股最大绝对值权重，浮点数类型  
+
+**target_index**：字符串，为wind指数板块id。该参数具有较高优先级，即如果同时输入该参数以及`code_file`参数，那么程序忽略`code_file`参数，而执行指数成分回测。常见指数的板块id如下：  
+&emsp;&emsp;沪深300：1000000090000000  
+&emsp;&emsp;中证500：1000008491000000  
+&emsp;&emsp;上证50：1000000087000000
+&emsp;&emsp;深证100：1000000089000000  
+&emsp;&emsp;恒生指数成分：a002010a00000000  
+&emsp;&emsp;更多板块id请在WIND API的板块函数（WSEE）-板块查询中搜索对应板块id。
+**code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls；如果以其他方式确定待回测股票，这一项不需填写。但是如果希望从文件中读入股票，那么应该保持`target_index`和`global_spec`两个参数为空。否则程序优先认为执行指数成分股回测或者基本面回测。
+**work_file**:程序输出到的文件夹地址
+**mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1`
+**vol**：组合年化波动率上限，浮点数类型，eg 0.15，表示15%
+**short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多
+**max_weight**：单股最大绝对值权重，浮点数类型
 **cash_return**：年化现金收益率，浮点数类型  
+**frequency**：回测的频率，目前支持“D”，“W”，“M”（日度、周度和月度）回测。
 **calc_time**：在`mode=2`下被调用，表示程序计算部分运行时间。期望是当日交易时间，如果早于当前，那么程序即刻运行，实际以当前时间为`calc_time`；如果晚于当前，那么等待至定时运行主程序。如果早于当日，那么认为是对自定义时点的单次回测；如果晚于当日日期，默认立即执行。输入请遵循格式yyyy-mm-dd HH:MM:SS, eg. 2018-12-10 10:20:00  
-**num_d**：用于回测的交易日长度  
-**start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。  
-**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。  
+**num_d**：用于回测的交易日长度
+**start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。
+**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。  *<font color="red">以下变量用于基本面选股的参数，当前版本还未完全实现其功能，目前不需填写以下变量值。</font>*  
+**global_spec**：采用基本面选股模式，字符串，表示全局股票范围，该参数优先级高于`code_file`但低于`target_index`。目前支持以下输入（大小写都可）：  
+&emsp;&emsp;全部A股：A-SHARE  
+&emsp;&emsp;上证A股：SH  
+&emsp;&emsp;深圳A股：SZ  
+&emsp;&emsp;深圳主板A股：SZ_MAIN  
+&emsp;&emsp;深圳中小板：SZ_SME  
+&emsp;&emsp;深圳创业板：SZ_GE  
+**basic_indices**：采用基本面选股模式，字符串，表示若干个基本面变量条件，eg `pe>=15`表示市盈率不低于15，不同条件之间用";"连接。目前支持的基本面变量如下（大小写皆可）：  
+&emsp;&emsp;市盈率：pe  
+&emsp;&emsp;市值：ev  
+&emsp;&emsp;市净率：pb  
+&emsp;&emsp;市销率：ps  
+&emsp;&emsp;市现率：pcf  
+&emsp;&emsp;净资产收益率：roe  
+&emsp;&emsp;分红收益率：dividendyield  
+**refresh_freq**：采用基本面选股模式，字符串，表示每隔多久刷新一次股票池。目前支持1M, 2M, 3M, 4M, 5M, 6M，分别表示每隔1个月到6个月。注意，该参数不受回测频率`frequency`影响，但是刷新次数与回测时间长度（`start_time`, `end_time`）有关。  
+**ics**：采用基本面选股模式，字符串，二级行业分类标准。默认选用wind行业分类(industry_gics)，较常用的分类标准如下：  
+&emsp;&emsp;wind行业分类：industry_gics  
+&emsp;&emsp;申万行业分类：industry_sw  
+&emsp;&emsp;中信行业分类：industry_citic  
+&emsp;&emsp;国信行业分类：industry_gx  
+&emsp;&emsp;AMAC行业分类：indexname_AMAC  
+**ics_fv**：采用基本面选股模式，字符串，用于在子行业内决定排名先后的变量，默认为市值（ev）。  
+**ics_rank**：采用基本面选股模式，整数类型，表示选取子行业内按`ics_fv`排序后最终进入股票池的股票个数（不足该数的则全部入选），默认值为4。
+
 #### 3.输出结果解释
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
 ##### 3.1*back-test*模式
-&emsp;&emsp;输出文件命名为*mkv_{code_file}_{longOnly,short}_yyyymm-yyyymm.xlsx*，其中*code_file*为用户提供的输入文件名，*yyyymm*表示回测起始时间和结束时间。输出文件包含3+T张表：
+&emsp;&emsp;输出文件命名为*mkv_{code_file/target_index/global_spec}_{longOnly,short}_yyyymm-yyyymm_{freqW}.xlsx*，其中*code_file*为用户提供的输入文件名，*yyyymm*表示回测起始时间和结束时间。输出文件包含3+T张表：
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示对应月末时点的优化权重结果。
 + **sheet2:portfolio monthly return**：各月末回测结果在下一个月持仓组合的收益率表现。
 + **sheet3:{num_d}-day mean returns**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示 在至每个月末时点过去`num_d`个交易日的股票的平均日收益率。用于检测优化结果表现。
 + **sheet4~T:Cov_{t}**：输出回测至各个月末时点前`num_d`个交易日期间股票的协方差矩阵估计。用于检测优化结果。
++ **last sheet**：在权重成分和基本面选股模式下，由于每个回测期间组合成分可能发生增减，最后一张表汇总所有曾经出现的股票代码。
 ##### 3.2*real-time*模式
 &emsp;&emsp;输出文件命名为*mkv_{code_file}_{longOnly,short}_yymmdd.xlsx*，其中*code_file*为用户提供的输入文件名，*yymmdd*为`calc_time`的时间简写。输出文件包含3张表：
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；第三列weight,表示本次计算的优化权重结果。
@@ -80,7 +111,7 @@ g. 双击`Mkv_start.exe`开始程序，如果您已经执行了f.那么可以Ent
 ---
 ### 开发者说明
 &emsp;&emsp;当前程序运行需要python3.6及以上版本，其他python3版本需要修改字符串`f'{var}'`为`{}.format{var}`。Project包含5个.py文件，main函数入口在`Mkv_start.py`。Project运行需要载入以下packages: *configparser*, *os*, *openpyxl*, *xlrd*, *datetime*, *WindPy*, *numpy*, *re*, *time*, *dateutil*, *calendar*, *scipy*, *mosek*。
-#### 1.Mkv_start.py
+#### 1.Mkv_main.py
 &emsp;&emsp;运行程序，创建`Manage`对象`m=Manage()`，`__init__()`函数将执行参数默认赋值以及参数文件的`configParam_mkv.conf`的创建及读取工作，并提示用户输入参数并保存。
 + `Manage.init_conf(self)`在项目文件夹下尝试读取该配置文件，如果该文件不存在，将自动创建同名空白文件。因为参数涉及中文路径，因此需要采用gbk编码格式。
 ```python
@@ -91,21 +122,32 @@ self.conf.read(CONF_NAME, encoding="gbk")
 该函数还将检测配合文件的section和option是否完整并且补全。完整的参数文件应当包含至少：
 ```
 [dir]
+target_index = a002010a00000000
 code_file =
-work_file =
+work_file = :/Users/zhangchangsheng/Desktop/Mkv_output
 
 [constraints]
-mode =
-vol =
-short =
-max_weight =
-cash_return =
+mode = 1
+vol = 0.15
+short = 0
+max_weight = 0.1
+cash_return = 0.02
 
 [calculation]
-calc_time =
-num_d =
-start_time =
-end_time =
+calc_time = 2018-12-05 09:33:00
+num_d = 64
+start_time = 2006-12-08
+end_time = 2007-05-05
+frequency = M
+
+[filter]
+global_spec =
+basic_indices =
+refresh_freq =
+ics =
+ics_fv =
+ics_rank =
+
 ```
 这是配置文件初始化模板，用户可自行修改该文件或者通过运行程序输入参数修改和配置该文件。
 + `Manage.set_code_file(self)`用于从键盘读入文件地址，需要输入完整地址；如果无需更改之前的文件名，可以空白输入并Enter跳过。通过调用`os.path.isfile`检验是否存在该文件，如果文件有误则提示重新输入。
@@ -166,7 +208,7 @@ for i in range(len(q_rows)):
             qsubj.append(q_rows[i][j])
             qval.append(q_data[i][j])
 ```
-#### 3.Mkv_optimize.py
+#### 3.Mkv_optimize2.py
 &emsp;&emsp;关于优化器具体使用，不在此赘述；当前版本设计优化的代码遵照MOSEK官方文档的一般格式，可以浏览该API文件：[MOSEK optimiser api for Python](https://github.com/MaggieHu77/Winfor-Mkv/blob/master/src/MOSEK%20optimiser%20api%20for%20Python.pdf)。
 #### 4.Mkv_constant.py
 &emsp;&emsp;定义了默认参数，将在用户输入部分失效的时候起作用。版本号，用于记录及后续更新。
