@@ -38,18 +38,24 @@ class BTcodes:
             self.ics_fv = params["ics_fv"]
             self.ics_rank = params["ics_rank"]
             self.refresh_freq = int(params["refresh_freq"][0])
-            self.spec_obj = MkvSpec(spec=self.global_spec, mode="test")
+            self.spec_obj = MkvSpec(spec=self.global_spec,
+                                    mode="run",
+                                    basic_indices=self.indices,
+                                    ics=self.ics,
+                                    ics_fv=self.ics_fv,
+                                    ics_rank=self.ics_rank)
 
     def get_current_codes(self, date, month_id):
         if self.input_mode == 3:
             return self.codes[-1]
         elif self.input_mode == 1:
             codes = w.wset("sectorconstituent",
-                           f"date={date};sectorid={self.target_index};field=wind_code").Data[0]
+                           f"date={date};windcode={self.target_index};field=wind_code").Data[0]
             self.codes.append(codes)
         else:
             if month_id % self.refresh_freq == 0:
-                self.codes.append(self.spec_obj.get_current_codes())
+                print("%更新股票筛选...")
+                self.codes.append(self.spec_obj.get_current_codes(trade_date=date))
             else:
                 self.codes.append(self.codes[-1])
         return self.codes[-1]

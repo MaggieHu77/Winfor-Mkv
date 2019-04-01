@@ -70,7 +70,7 @@ class BTdate(object):
             seq.pop()
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
         month = []
-        seq_ = [(seq[0], 0)]
+        seq_ = []
         for ss in seq:
             if ss[0:7] not in month:
                 # 只有在新月份出现时才可能出现更新
@@ -87,7 +87,7 @@ class BTdate(object):
         seq = w.tdays(start, end).Data[0]
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
         month = []
-        seq_ = [(seq[0], 0)]
+        seq_ = []
         for ss in seq:
             if ss[0:7] not in month:
                 # 只有在新月份出现时才可能出现更新

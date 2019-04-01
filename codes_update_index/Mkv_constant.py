@@ -6,7 +6,7 @@
 """
 
 # 版本号
-VERSION = "v0.4.1.190328_beta"
+VERSION = "v0.5.1.190330_beta"
 # 一年内交易日
 N = 245
 # 历史交易日数据长度
@@ -60,4 +60,5 @@ FIELDS_ALIAS_DICT = {"pe": "pe_ttm",
                      "ps": "ps_ttm",
                      "pcf": "pcf_ncf_ttm",
                      "dicidendyield": "dividendyield2",
-                     "roe": "roe_avg"}
+                     "roe": "roe_avg",
+                     "est_netprofit": "west_netprofit_YOY"}

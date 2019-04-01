@@ -14,6 +14,7 @@ from Mkv_pointwise_codes import BTcodes
 from Mkv_eval import MkvEval
 from datetime import date, datetime
 import traceback
+import pandas as pd
 from WindPy import w
 
 
@@ -270,7 +271,8 @@ class Manage:
         """
         self.refresh_freq = self.conf.get("filter", "refresh_freq").strip("\n\r").upper()
         if self.refresh_freq:
-            assert self.refresh_freq[0] in [1, 2, 3, 4, 5, 6] and self.refresh_freq[1] == "M", \
+            assert int(self.refresh_freq[0]) in [1, 2, 3, 4, 5, 6] and self.refresh_freq[1] == \
+                   "M", \
                 "Error: parameter refresh_freq is not supported, should be in 1M~6M"
 
     def read_ics(self):
@@ -281,7 +283,7 @@ class Manage:
         self.ics = self.conf.get("filter", "ics").strip("\n\r").lower()
         if not self.ics:
             self.ics = DEFAULT_ICS
-            print("Warning: 参数ics（行业分类标准）未正确输入，采用默认输入--WIND行业分类")
+            print("Warning: 参数ics（行业分类标准）未正确输入，采用默认输入--industry_gics（WIND行业分类）")
 
     def read_ics_fv(self):
         """
@@ -291,13 +293,18 @@ class Manage:
         self.ics_fv = self.conf.get("filter", "ics_fv").strip("\n\r").lower()
         if not self.ics_fv:
             self.ics_fv = DEFAULT_ICS_FV
+        else:
+            self.ics_fv = FIELDS_ALIAS_DICT.get(self.ics_fv, 0)
+            if not self.ics_fv:
+                print("Warning：ics_fv（二级行业内排序变量）未正确输入，采用默认输入--ev（市值）")
+                self.ics_fv = DEFAULT_ICS_FV
 
     def read_ics_rank(self):
         """
         读取子行业内排名变量，暂时只支持单个变量排序
         :return:
         """
-        self.ics_rank = self.conf.get("filter", "rank").strip("\n\r").lower()
+        self.ics_rank = self.conf.get("filter", "ics_rank").strip("\n\r").lower()
         if not self.ics_rank:
             self.ics_rank = ICS_RANK
             print(f"Warning: 参数ics_rank（单个行业入选股票数量）未正确输入，采用默认输入rank={ICS_RANK}")
@@ -490,20 +497,7 @@ class Manage:
         s3 = wb.create_sheet()
         s3.title = f"{self.num_d}-day mean returns"
         # 写第一张表回测各周期weights
-        content1 = []
-        for tt in self.t_seq:
-            items = [("code", "name")] + [(s.code, s.name) for s in self.stocks_panel[tt]] + [(
-                "cash", "现金")]
-            content1.extend(list(zip(*items)))
-            content1.append([tt] + self.w_panel[tt])
-        # 注意长短可能不一致，需要补齐
-        # 先获取最长的列长度
-        lens = [len(col) for col in content1]
-        max_len = max(lens)
-        for cc in range(len(content1)):
-            content1[cc] = list(content1[cc])
-            content1[cc].extend([""]*(max_len-lens[cc]))
-        content1 = list(zip(*content1))
+        content1 = dict2list(stock_pannel=self.stocks_panel, var_pannel=self.w_panel)
         for row in content1:
             s1.append(row)
         # 写第二张表回测权重持有至下一期的组合期间收益率
@@ -523,20 +517,9 @@ class Manage:
         s2.append(["evaluation_date"] + self.t_eval_seq)
         s2.append(col22)
         # 写第三张表
-        content3 = []
-        for tt in self.t_seq:
-            items = [("code", "name")] + [(s.code, s.name) for s in self.stocks_panel[tt]] + [(
-                "cash", "现金")]
-            content3.extend(list(zip(*items)))
-            content3.append([tt] + self.mu_panel[tt] + [self.cash_r])
-        # 注意长短可能不一致，需要补齐
-        # 先获取最长的列长度
-        lens = [len(col) for col in content3]
-        max_len = max(lens)
-        for cc in range(len(content3)):
-            content3[cc] = list(content3[cc])
-            content3[cc].extend([""] * (max_len - lens[cc]))
-        content3 = list(zip(*content3))
+        content3 = dict2list(stock_pannel=self.stocks_panel,
+                             var_pannel=self.mu_panel,
+                             suffix=[self.cash_r])
         for row in content3:
             s3.append(row)
         # 写回测期间协方差的表
@@ -545,14 +528,6 @@ class Manage:
             exec(f"s{4 + t}.title='Cov_{self.t_seq[t]}'")
             for row in self.cov_panel[self.t_seq[t]]:
                 exec(f"s{4 + t}.append({list(row)})")
-        # 写所有股票集合
-        exec(f"s{4 + len(self.t_seq)}=wb.create_sheet()")
-        exec(f"s{4 + len(self.t_seq)}.title='Stocks Union'")
-        union = set()
-        for tt in self.t_seq:
-            union = union | set([s.code for s in self.stocks_panel[tt]])
-        union = list(union)
-        exec(f"s{4 + len(self.t_seq)}.append(union)")
 
         output_dir = f"{self.work_dir}/mkv_{[self.target_index, self.global_spec][self.input_mode-1]}" + \
                      f"_{['longOnly', 'short'][self.short]}_" \
@@ -656,8 +631,59 @@ def test_read_codes(f="C:/Users/Maggie/Desktop/test.xls"):
     print(res)
 
 
+# helper func: merge weights in different sets of stock pools
+def dict2list(stock_pannel, var_pannel, suffix=None):
+    """
+    这个函数扩展性不佳，为了分隔较复杂的数据形式重组功能
+    :param stock_pannel: 包含回测全部权股票基本信息的字典数据
+    :param var_pannel：包含回测全部权重信息的字典数据
+    :param suffix：需要附加在var_pannel元素后的list
+    :return: 通过pd.DataFrame merge各个不同日期回测结果后转换为可以直接写入workbook的list形式
+    """
+    # 提取时间索引
+    t_seq = list(stock_pannel.keys())
+    t_start = t_seq[0]
+
+    # 定义函数将每次回测结果转化为DataFrame
+    def dict2dataframe(key):
+        content0 = [[s.code, s.name] for s in stock_pannel[key]]
+        content0.append(["cash", "现金"])
+        content0 = dict(zip(["code", "name"],zip(*content0)))
+        if suffix:
+            if isinstance(var_pannel[key], list):
+                var_pannel_ = var_pannel[key] + suffix
+            else:
+                var_pannel_ = list(var_pannel) + suffix
+            content0.update({key: var_pannel_})
+            df0 = pd.DataFrame(content0)
+        else:
+            content0.update({key: var_pannel[key]})
+            df0 = pd.DataFrame(content0)
+        return df0
+
+    # 初始化总表
+    df = dict2dataframe(t_start)
+    # 通过循环，每次加入一次回测结果，保存之前结果merge后的数据框
+    for tt in t_seq[1:]:
+        df0 = dict2dataframe(tt)
+        df = pd.merge(df, df0, on=["code", "name"], how="outer", copy=False)
+    # 由于没有采用index，需要在输出之前调整行列顺序使其美观
+    # 调整列顺序
+    df = df[["code", "name"] + t_seq]
+    # 调整行序，使得现金始终排在最后一行
+    cash_id = df[df.code == "cash"].index.tolist()
+    cash_row = df.iloc[cash_id]
+    df.drop(index=cash_id, inplace=True)
+    df = df.append(cash_row)
+    df2list = df.values.tolist()
+    df2list.insert(0, df.columns.tolist())
+    return df2list
+
+
 if __name__ == "__main__":
     import os
+    # import logging
+    # logging.basicConfig(level=logging.DEBUG)
     try:
         m = Manage()
         m.run_optimizer()
