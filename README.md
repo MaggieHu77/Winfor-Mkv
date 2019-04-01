@@ -11,7 +11,7 @@
 + [X] 支持部分约束：做空约束，组合年化波动率上限约束，单股最大绝对值权重约束。在约束条件下，最大化组合期望收益率。
 + [X] *real-time* `mode=2`：根据前$l$个交易日股票集合的收益率数据，优化结果$\boldsymbol{\omega}$作为下期持仓的建议。
 + [X] *back-test* `mode=1`：根据设定的开始时间`start-time (yyyy-mm)`和结束时间`end_time (yyyy-mm)`提取区间内的月末交易日日期$d_p,p\in\{1,2,...,P\}$，在每个月末时点上以前$l$个交易日的股票集合日收益率数据估计最优权重$\boldsymbol{\omega_p}$，并以此作为持仓权重持有资产至下月末$d_{p+1}$。在回测期内，将得到从第$2$月到第$P+1$月的模拟组合收益率。<font color="red">新版本支持不同频率（日、周、月）三个频率上做的回测功能。</font>
-+ [ ] 实现条件选股功能，在全局环境`global_spec`（依靠WindPy API支持，当前对A股市场支持最好。__TODO__：考虑其他交易所的数据可靠性和来源。）环境下，根据股票的基本面条件（依靠WindPy API支持：$P/E$, $ROE$等）初步筛选符合条件的股票，并且在GICS二级行业分类（`ics`:_industry classification standard，可选变量，默认为GICS_）内按照初筛股票的市值（`ics_fv`:_ics filter variable_，可选，目前锁死为有限可选内的变量，默认为市值;__TODO__:提供可进一步选择行业内筛选变量的）降序排列后取前4（`ics_rank`:_ics rank_，取行业内前排位的股票进入待配股票池，当前仅支持行业均配。__TODO__：考虑行业本身规模，以及其他选择子行业内股票数量的方法）
++ [X] 实现条件选股功能，在全局环境`global_spec`（依靠WindPy API支持，当前对A股市场支持最好。__TODO__：考虑其他交易所的数据可靠性和来源。）环境下，根据股票的基本面条件（依靠WindPy API支持：$P/E$, $ROE$等）初步筛选符合条件的股票，并且在GICS二级行业分类（`ics`:_industry classification standard，可选变量，默认为GICS_）内按照初筛股票的市值（`ics_fv`:_ics filter variable_，可选，目前锁死为有限可选内的变量，默认为市值;__TODO__:提供可进一步选择行业内筛选变量的）降序排列后取前4（`ics_rank`:_ics rank_，取行业内前排位的股票进入待配股票池，当前仅支持行业均配。__TODO__：考虑行业本身规模，以及其他选择子行业内股票数量的方法）
 
 #### 模型说明：
 &emsp;&emsp;首先说明变量与记号便于模型构建与理解。
@@ -50,13 +50,7 @@ f. 下载`configParam_mkv.conf`到./directory/Mkv，直接在文件中修改对�
 g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`读入策略所需要的所有参数，输入参数不符合规范将导致程序报错。各个参数的释义及支持范围、填写格式请见“2.参数释义”部分。一个完整的`configParam_mkv.conf`文件填写实例请见"开发者说明-1.Mkv_main.py中的填写示例"
 #### 2.参数释义
 
-**target_index**：字符串，为wind指数板块id。该参数具有较高优先级，即如果同时输入该参数以及`code_file`参数，那么程序忽略`code_file`参数，而执行指数成分回测。常见指数的板块id如下：  
-&emsp;&emsp;沪深300：1000000090000000  
-&emsp;&emsp;中证500：1000008491000000  
-&emsp;&emsp;上证50：1000000087000000  
-&emsp;&emsp;深证100：1000000089000000  
-&emsp;&emsp;恒生指数成分：a002010a00000000  
-&emsp;&emsp;更多板块id请在WIND API的板块函数（WSEE）-板块查询中搜索对应板块id。  
+**target_index**：字符串，目标追踪指数成分的指数wind代码（如恒生指数：HSI.HI）。该参数具有较高优先级，即如果同时输入该参数以及`code_file`参数，那么程序忽略`code_file`参数，而执行指数成分回测。  
 **code_file**:第e.步创建的包含目标股票资产的文件地址 eg. C:/Users/Dell/Mkv/codes.xls；如果以其他方式确定待回测股票，这一项不需填写。但是如果希望从文件中读入股票，那么应该保持`target_index`和`global_spec`两个参数为空。否则程序优先认为执行指数成分股回测或者基本面回测。  
 **work_file**:程序输出到的文件夹地址  
 **mode**:模式控制参数，如果*real-time* `mode=2`；或者 *back-test* `mode=1`  
@@ -68,7 +62,7 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 **calc_time**：在`mode=2`下被调用，表示程序计算部分运行时间。期望是当日交易时间，如果早于当前，那么程序即刻运行，实际以当前时间为`calc_time`；如果晚于当前，那么等待至定时运行主程序。如果早于当日，那么认为是对自定义时点的单次回测；如果晚于当日日期，默认立即执行。输入请遵循格式yyyy-mm-dd HH:MM:SS, eg. 2018-12-10 10:20:00    
 **num_d**：用于回测的交易日长度  
 **start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。  
-**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。  *<font color="red">以下变量用于基本面选股的参数，当前版本还未完全实现其功能，目前不需填写以下变量值。</font>*    
+**end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。    
 **global_spec**：采用基本面选股模式，字符串，表示全局股票范围，该参数优先级高于`code_file`但低于`target_index`。目前支持以下输入（大小写都可）：    
 &emsp;&emsp;全部A股：A-SHARE  
 &emsp;&emsp;上证A股：SH  
@@ -83,7 +77,9 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;市销率：ps  
 &emsp;&emsp;市现率：pcf  
 &emsp;&emsp;净资产收益率：roe  
+&emsp;&emsp;万德一致预期净利润同比：est_netprofit
 &emsp;&emsp;分红收益率：dividendyield  
+<font color="red">注意：所有类似市值的参数单位都是1（原始货币）；roe，dividendyield, est_netprofit表示为百分数（eg.如15%只需写15）</font>  
 **refresh_freq**：采用基本面选股模式，字符串，表示每隔多久刷新一次股票池。目前支持1M, 2M, 3M, 4M, 5M, 6M，分别表示每隔1个月到6个月。注意，该参数不受回测频率`frequency`影响，但是刷新次数与回测时间长度（`start_time`, `end_time`）有关。  
 **ics**：采用基本面选股模式，字符串，二级行业分类标准。默认选用wind行业分类(industry_gics)，较常用的分类标准如下：  
 &emsp;&emsp;wind行业分类：industry_gics  
@@ -91,18 +87,17 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;中信行业分类：industry_citic  
 &emsp;&emsp;国信行业分类：industry_gx  
 &emsp;&emsp;AMAC行业分类：indexname_AMAC  
-**ics_fv**：采用基本面选股模式，字符串，用于在子行业内决定排名先后的变量，默认为市值（ev）。  
+**ics_fv**：采用基本面选股模式，字符串，用于在子行业内决定排名先后的变量，默认为市值（ev）。其余可选排名变量请见**basic_indices**中所列示的变量。（**TODO**:解决硬编码基本面变量的问题）
 **ics_rank**：采用基本面选股模式，整数类型，表示选取子行业内按`ics_fv`排序后最终进入股票池的股票个数（不足该数的则全部入选），默认值为4。
 
 #### 3.输出结果解释
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
 ##### 3.1*back-test*模式
-&emsp;&emsp;输出文件命名为*mkv_{code_file/target_index/global_spec}_{longOnly,short}_yyyymm-yyyymm_{freqW}.xlsx*，其中*code_file*为用户提供的输入文件名，*yyyymm*表示回测起始时间和结束时间。输出文件包含3+T张表：
+&emsp;&emsp;输出文件命名为*mkv_{code_file/target_index/global_spec}_{longOnly,short}_yyyymm-yyyymm_freq{M,W,D}.xlsx*，其中*code_file*为用户提供的输入文件名，*yyyymm*表示回测起始时间和结束时间。输出文件包含3+T张表：
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示对应月末时点的优化权重结果。
 + **sheet2:portfolio monthly return**：各月末回测结果在下一个月持仓组合的收益率表现。
 + **sheet3:{num_d}-day mean returns**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示 在至每个月末时点过去`num_d`个交易日的股票的平均日收益率。用于检测优化结果表现。
 + **sheet4~T:Cov_{t}**：输出回测至各个月末时点前`num_d`个交易日期间股票的协方差矩阵估计。用于检测优化结果。
-+ **last sheet**：在权重成分和基本面选股模式下，由于每个回测期间组合成分可能发生增减，最后一张表汇总所有曾经出现的股票代码。
 ##### 3.2*real-time*模式
 &emsp;&emsp;输出文件命名为*mkv_{code_file}_{longOnly,short}_yymmdd.xlsx*，其中*code_file*为用户提供的输入文件名，*yymmdd*为`calc_time`的时间简写。输出文件包含3张表：
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；第三列weight,表示本次计算的优化权重结果。
