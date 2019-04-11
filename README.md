@@ -71,15 +71,18 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;深圳中小板：SZ_SME  
 &emsp;&emsp;深圳创业板：SZ_GE  
 **basic_indices**：采用基本面选股模式，字符串，表示若干个基本面变量条件，eg `pe>=15`表示市盈率不低于15，不同条件之间用";"连接。目前支持的基本面变量如下（大小写皆可）：  
-&emsp;&emsp;市盈率：pe  
+&emsp;&emsp;市盈率TTM：pe  
 &emsp;&emsp;市值：ev  
 &emsp;&emsp;市净率：pb  
-&emsp;&emsp;市销率：ps  
-&emsp;&emsp;市现率：pcf  
+&emsp;&emsp;市销率TTM：ps  
+&emsp;&emsp;市现率TTM：pcf  
 &emsp;&emsp;净资产收益率：roe  
 &emsp;&emsp;万德一致预期净利润同比：est_netprofit
 &emsp;&emsp;分红收益率：dividendyield  
-<font color="red">注意：所有类似市值的参数单位都是1（原始货币）；roe，dividendyield, est_netprofit表示为百分数（eg.如15%只需写15）</font>  
+&emsp;&emsp;净利润两年平均复合增长率：netprofit_cagr  
+&emsp;&emsp;资产负债率：debt_ratio  
+&emsp;&emsp;经营活动净现金流/经营利润TTM：ocf2op  
+<font color="red">注意：所有类似市值的参数单位都是1（原始货币）；roe，dividendyield, est_netprofit,debt_ratio,netprofit_cagr,ocf2op表示为百分数（eg.如15%只需写15）</font>  
 **refresh_freq**：采用基本面选股模式，字符串，表示每隔多久刷新一次股票池。目前支持1M, 2M, 3M, 4M, 5M, 6M，分别表示每隔1个月到6个月。注意，该参数不受回测频率`frequency`影响，但是刷新次数与回测时间长度（`start_time`, `end_time`）有关。  
 **ics**：采用基本面选股模式，字符串，二级行业分类标准。默认选用wind行业分类(industry_gics)，较常用的分类标准如下：  
 &emsp;&emsp;wind行业分类：industry_gics  
@@ -88,7 +91,10 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;国信行业分类：industry_gx  
 &emsp;&emsp;AMAC行业分类：indexname_AMAC  
 **ics_fv**：采用基本面选股模式，字符串，用于在子行业内决定排名先后的变量，默认为市值（ev）。其余可选排名变量请见**basic_indices**中所列示的变量。（**TODO**:解决硬编码基本面变量的问题）
-**ics_rank**：采用基本面选股模式，整数类型，表示选取子行业内按`ics_fv`排序后最终进入股票池的股票个数（不足该数的则全部入选），默认值为4。
+**ics_rank**：采用基本面选股模式，表示选取子行业内按`ics_fv`排序后最终进入股票池的股票个数（不足该数的则全部入选）；支持3中输入方式；
+- `n`-->输入单个整数n，则表示取排名前n的股票
+- `n:m`-->输入索引切片形式，则表示取排名第n到第m的股票
+- ``[n,m,p,q]``-->输入列表形式，则表示取对应特定排名的股票
 
 #### 3.输出结果解释
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
@@ -97,12 +103,12 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示对应月末时点的优化权重结果。
 + **sheet2:portfolio monthly return**：各月末回测结果在下一个月持仓组合的收益率表现。
 + **sheet3:{num_d}-day mean returns**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示 在至每个月末时点过去`num_d`个交易日的股票的平均日收益率。用于检测优化结果表现。
-+ **sheet4~T:Cov_{t}**：输出回测至各个月末时点前`num_d`个交易日期间股票的协方差矩阵估计。用于检测优化结果。
+<!-- + **sheet4~T:Cov_{t}**：输出回测至各个月末时点前`num_d`个交易日期间股票的协方差矩阵估计。用于检测优化结果。 -->
 ##### 3.2*real-time*模式
 &emsp;&emsp;输出文件命名为*mkv_{code_file}_{longOnly,short}_yymmdd.xlsx*，其中*code_file*为用户提供的输入文件名，*yymmdd*为`calc_time`的时间简写。输出文件包含3张表：
 + **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；第三列weight,表示本次计算的优化权重结果。
 + **sheet2:{num_d}-days mean returns**：第一列code，表示股票代码；第二列name表示股票简称；第三列mu表示本次计算中，各股票在`calc_time`时点前`num_d`个交易日期间的收益率均值。用于检测优化结果。
-+ **sheet3:covariance**：第一列code，表示股票代码；第二列name表示股票简称；之后列为在`calc_time`时点前`num_d`个交易日期间股票的协方差矩阵。
+<!-- + **sheet3:covariance**：第一列code，表示股票代码；第二列name表示股票简称；之后列为在`calc_time`时点前`num_d`个交易日期间股票的协方差矩阵。 -->
 ---
 ### 开发者说明
 &emsp;&emsp;当前程序运行需要python3.6及以上版本，其他python3版本需要修改字符串`f'{var}'`为`{}.format{var}`。Project包含5个.py文件，main函数入口在`Mkv_start.py`。Project运行需要载入以下packages: *configparser*, *os*, *openpyxl*, *xlrd*, *datetime*, *WindPy*, *numpy*, *re*, *time*, *dateutil*, *calendar*, *scipy*, *mosek*。
@@ -117,9 +123,9 @@ self.conf.read(CONF_NAME, encoding="gbk")
 该函数还将检测配合文件的section和option是否完整并且补全。完整的参数文件应当包含至少：
 ```
 [dir]
-target_index = a002010a00000000
+target_index =
 code_file =
-work_file = :/Users/zhangchangsheng/Desktop/Mkv_output
+work_file = C:/Users/zhangchangsheng/Desktop/Mkv_output
 
 [constraints]
 mode = 1
@@ -136,13 +142,12 @@ end_time = 2007-05-05
 frequency = M
 
 [filter]
-global_spec =
-basic_indices =
-refresh_freq =
-ics =
-ics_fv =
-ics_rank =
-
+global_spec = SH
+basic_indices = pe>=20;roe>=4;est_netprofit>10;debt_ratio<=50;netprofit_cagr>=15
+refresh_freq = 1M
+ics = industry_gics
+ics_fv = ev
+ics_rank = 2:8
 ```
 这是配置文件初始化模板，用户可自行修改该文件或者通过运行程序输入参数修改和配置该文件。
 + `Manage.set_code_file(self)`用于从键盘读入文件地址，需要输入完整地址；如果无需更改之前的文件名，可以空白输入并Enter跳过。通过调用`os.path.isfile`检验是否存在该文件，如果文件有误则提示重新输入。
