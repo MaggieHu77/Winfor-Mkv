@@ -61,4 +61,7 @@ FIELDS_ALIAS_DICT = {"pe": "pe_ttm",
                      "pcf": "pcf_ncf_ttm",
                      "dicidendyield": "dividendyield2",
                      "roe": "roe_avg",
-                     "est_netprofit": "west_netprofit_YOY"}
+                     "est_netprofit": "west_netprofit_YOY",
+                     "netprofit_cagr": "west_netprofit_CAGR",
+                     "ocf2op": "operatecashflowtoop_ttm",
+                     "debt_ratio": "debttoassets"}

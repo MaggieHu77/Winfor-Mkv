@@ -123,9 +123,22 @@ class MkvSpec:
         self.df_filter_group = self.df_filter.groupby("INDUSTRY")
         self.pool_codes = []
         for _, tb in self.df_filter_group:
-            self.pool_codes.extend(
-                tb.sort_values(self.ics_fv.upper(),
-                ascending=False).head(self.ics_rank).index.tolist())
+            if isinstance(self.ics_rank, int):
+                ids = tb.sort_values(self.ics_fv.upper(),
+                ascending=False).head(self.ics_rank).index.tolist()
+            elif isinstance(self.ics_rank, list):
+                rank_ = list(filter(lambda x: x <= tb.shape[0]-1, self.ics_rank))
+                ids = tb.sort_values(self.ics_fv.upper(),
+                                     ascending=False).iloc[rank_,].index.tolist()
+            else:
+                h, t = self.ics_rank
+                if h < tb.shape[0]:
+                    ids = tb.sort_values(self.ics_fv.upper(),
+                                         ascending=False).iloc[h:min(t, tb.shape[0]),
+                          ].index.tolist()
+                else:
+                    ids = []
+            self.pool_codes.extend(ids)
         self.pool_codes = list(set(self.pool_codes))
         print(f"%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化")
         return self.pool_codes

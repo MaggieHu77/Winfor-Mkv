@@ -302,16 +302,27 @@ class Manage:
     def read_ics_rank(self):
         """
         读取子行业内排名变量，暂时只支持单个变量排序
+        读入特定排序的股票
+        1.如果输入单个整数，取前该整数个股票
+        2.如果输入m:n，取第m到第n只股票
+        3.如果输入[a,b,c,d]，取第a，第b，第c，第d只股票
         :return:
         """
         self.ics_rank = self.conf.get("filter", "ics_rank").strip("\n\r").lower()
         if not self.ics_rank:
             self.ics_rank = ICS_RANK
             print(f"Warning: 参数ics_rank（单个行业入选股票数量）未正确输入，采用默认输入rank={ICS_RANK}")
-        elif not self.ics_rank.isdigit():
-            raise Exception("ParameterError: 参数ics_rank必须为正整数")
-        else:
+        elif self.ics_rank.isdigit():
             self.ics_rank = int(self.ics_rank)
+        elif ":" in self.ics_rank:
+            h, t = list(map(int, self.ics_rank.strip(" ").split(":")))
+            h = h - 1
+            self.ics_rank = (h, t)
+        elif "[" in self.ics_rank:
+            rank_ = list(map(int, self.ics_rank.strip("[]").split(",")))
+            self.ics_rank = list(map(lambda x: x-1, rank_))
+        else:
+            raise Exception("ParameterError: 参数ics_rank必须为正整数,索引切片m:n或者list [m,n,p,q]形式")
 
     def read_codes(self):
         """
@@ -443,6 +454,7 @@ class Manage:
         s2.title = "portfolio %s returns" % token
         s3 = wb.create_sheet()
         s3.title = f"{self.num_d}-day mean returns"
+        self.codes = [s.code for s in self.stocks_panel[self.t_seq[0]]]
         # 写第一张表回测各周期weights
         col11 = ["code"] + self.codes + ["cash"]
         names = [s.name for s in self.stocks_panel[self.t_seq[0]]]
@@ -474,11 +486,11 @@ class Manage:
             s3.append(row)
 
         # 写回测期间协方差的表
-        for t in range(len(self.t_seq)):
-            exec(f"s{4+t}=wb.create_sheet()")
-            exec(f"s{4+t}.title='Cov_{self.t_seq[t]}'")
-            for row in self.cov_panel[self.t_seq[t]]:
-                exec(f"s{4+t}.append({list(row)})")
+        # for t in range(len(self.t_seq)):
+        #     exec(f"s{4+t}=wb.create_sheet()")
+        #     exec(f"s{4+t}.title='Cov_{self.t_seq[t]}'")
+        #     for row in self.cov_panel[self.t_seq[t]]:
+        #         exec(f"s{4+t}.append({list(row)})")
 
         output_dir = f"{self.work_dir}/mkv_{path.splitext(path.basename(self.code_dir))[0]}"+ \
             f"_{['longOnly', 'short'][self.short]}_" \
@@ -523,11 +535,11 @@ class Manage:
         for row in content3:
             s3.append(row)
         # 写回测期间协方差的表
-        for t in range(len(self.t_seq)):
-            exec(f"s{4 + t}=wb.create_sheet()")
-            exec(f"s{4 + t}.title='Cov_{self.t_seq[t]}'")
-            for row in self.cov_panel[self.t_seq[t]]:
-                exec(f"s{4 + t}.append({list(row)})")
+        # for t in range(len(self.t_seq)):
+        #     exec(f"s{4 + t}=wb.create_sheet()")
+        #     exec(f"s{4 + t}.title='Cov_{self.t_seq[t]}'")
+        #     for row in self.cov_panel[self.t_seq[t]]:
+        #         exec(f"s{4 + t}.append({list(row)})")
 
         output_dir = f"{self.work_dir}/mkv_{[self.target_index, self.global_spec][self.input_mode-1]}" + \
                      f"_{['longOnly', 'short'][self.short]}_" \
@@ -542,8 +554,8 @@ class Manage:
         s1.title = "weights"
         s2 = wb.create_sheet()
         s2.title = f"{self.num_d}-days mean returns"
-        s3 = wb.create_sheet()
-        s3.title = "covariance"
+        # s3 = wb.create_sheet()
+        # s3.title = "covariance"
         # 写第一张表-weight
         s1.cell(row=1, column=1, value="code")
         s1.cell(row=1, column=2, value="name")
@@ -572,15 +584,15 @@ class Manage:
         for t in range(len(self.stocks[0].t)):
             s2.cell(row=len(self.w) + 1, column=t + 4, value=self.cash_r)
         # 写第三张表-covariance
-        s3.cell(row=1, column=1, value="code")
-        s3.cell(row=1, column=2, value="name")
-        for cc in range(len(self.stocks)):
-            s3.cell(row=cc + 2, column=1, value=self.stocks[cc].code)
-            s3.cell(row=cc + 2, column=2, value=self.stocks[cc].name)
-        for i in range(len(self.params['qval'])):
-            s3.cell(row=self.params['qsubi'][i] + 2,
-                    column=self.params['qsubj'][i] +3,
-                    value=self.params['qval'][i])
+        # s3.cell(row=1, column=1, value="code")
+        # s3.cell(row=1, column=2, value="name")
+        # for cc in range(len(self.stocks)):
+        #     s3.cell(row=cc + 2, column=1, value=self.stocks[cc].code)
+        #     s3.cell(row=cc + 2, column=2, value=self.stocks[cc].name)
+        # for i in range(len(self.params['qval'])):
+        #     s3.cell(row=self.params['qsubi'][i] + 2,
+        #             column=self.params['qsubj'][i] +3,
+        #             value=self.params['qval'][i])
         output_dir = f"{self.work_dir}/mkv_{[self.target_index, self.global_spec][self.input_mode-1]}"+ \
             f"_{['longOnly', 'short'][self.short]}_{datetime(*self.calc_t.values()).strftime('%y%m%d')}.xlsx"
         wb.save(output_dir)

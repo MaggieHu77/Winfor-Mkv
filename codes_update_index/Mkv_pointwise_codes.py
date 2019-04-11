@@ -97,5 +97,6 @@ def read_codes(f):
                 codes.append(code)
     else:
         print(f"Error: 不支持的文件格式{b_type}")
+    codes = list(set(codes))
     return codes
 
