@@ -11,7 +11,7 @@
 + [X] 支持部分约束：做空约束，组合年化波动率上限约束，单股最大绝对值权重约束。在约束条件下，最大化组合期望收益率。
 + [X] *real-time* `mode=2`：根据前$l$个交易日股票集合的收益率数据，优化结果$\boldsymbol{\omega}$作为下期持仓的建议。
 + [X] *back-test* `mode=1`：根据设定的开始时间`start-time (yyyy-mm)`和结束时间`end_time (yyyy-mm)`提取区间内的月末交易日日期$d_p,p\in\{1,2,...,P\}$，在每个月末时点上以前$l$个交易日的股票集合日收益率数据估计最优权重$\boldsymbol{\omega_p}$，并以此作为持仓权重持有资产至下月末$d_{p+1}$。在回测期内，将得到从第$2$月到第$P+1$月的模拟组合收益率。<font color="red">新版本支持不同频率（日、周、月）三个频率上做的回测功能。</font>
-+ [X] 实现条件选股功能，在全局环境`global_spec`（依靠WindPy API支持，当前对A股市场支持最好。__TODO__：考虑其他交易所的数据可靠性和来源。）环境下，根据股票的基本面条件（依靠WindPy API支持：$P/E$, $ROE$等）初步筛选符合条件的股票，并且在GICS二级行业分类（`ics`:_industry classification standard，可选变量，默认为GICS_）内按照初筛股票的市值（`ics_fv`:_ics filter variable_，可选，目前锁死为有限可选内的变量，默认为市值;__TODO__:提供可进一步选择行业内筛选变量的）降序排列后取前4（`ics_rank`:_ics rank_，取行业内前排位的股票进入待配股票池，当前仅支持行业均配。__TODO__：考虑行业本身规模，以及其他选择子行业内股票数量的方法）
++ [X] 实现条件选股功能，在全局环境`global_spec`（依靠WindPy API支持，当前对A股市场支持最好。__TODO__：考虑其他交易所的数据可靠性和来源。）环境下，根据股票的基本面条件（依靠WindPy API支持：$P/E$, $ROE$等）初步筛选符合条件的股票，并且在GICS二级行业分类（`ics`:_industry classification standard，可选变量，默认为GICS_）内按照初筛股票的市值（`ics_fv`:_ics filter variable_，可选，目前推荐使用本文档列示的`basic_indices`可选内的变量，默认为市值；但也接受用户选择其他合法的wind变量代码。
 
 #### 模型说明：
 &emsp;&emsp;首先说明变量与记号便于模型构建与理解。
@@ -58,19 +58,27 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 **short**：表示做空约束，`short=1`允许做空；`short=0`仅能做多  
 **max_weight**：单股最大绝对值权重，浮点数类型  
 **cash_return**：年化现金收益率，浮点数类型  
-**frequency**：回测的频率，目前支持“D”，“W”，“M”（日度、周度和月度）回测。  
+**frequency**：回测的频率，目前支持“H”，“D”，“W”，“M”（小时，日度、周度和月度）回测。<font color="red">日频及更低频回测，其回测基准K线都是日K线，区别是调仓频率不同。但小时频的基准K线是60min K线，暂时仅支持每小时调仓；并且wind的分钟级别数据仅包括大陆6大交易所，因此港股和美股无法采用分钟级别数据。在分钟级别数据上应用低频的基本面数据意义不大，因此小时频回测暂支持`code_file`输入和`target_index`输入。</font>  
 **calc_time**：在`mode=2`下被调用，表示程序计算部分运行时间。期望是当日交易时间，如果早于当前，那么程序即刻运行，实际以当前时间为`calc_time`；如果晚于当前，那么等待至定时运行主程序。如果早于当日，那么认为是对自定义时点的单次回测；如果晚于当日日期，默认立即执行。输入请遵循格式yyyy-mm-dd HH:MM:SS, eg. 2018-12-10 10:20:00    
 **num_d**：用于回测的交易日长度  
 **start_time**：在`mode=1`下被调用，表示回测开始的年月。格式yyyy-mm，回测从该月末交易日收盘开始。  
 **end_time**：在`mode=1`下被调用，表示回测结束的年月。格式yyyy-mm，回测在该月末交易日收盘结束获得最后一次权重优化结果，并持有至后一个月结束。    
-**global_spec**：采用基本面选股模式，字符串，表示全局股票范围，该参数优先级高于`code_file`但低于`target_index`。目前支持以下输入（大小写都可）：    
+**global_spec**：采用基本面选股模式，字符串，表示全局股票范围，该参数优先级高于`code_file`但低于`target_index`。目前支持以下输入（大小写都可）；如果需要同时将多个股票空间合并进行筛选，可用;分隔（eg. HK;US_CSS表示全部港股和美股上市中概股）：    
 &emsp;&emsp;全部A股：A-SHARE  
 &emsp;&emsp;上证A股：SH  
 &emsp;&emsp;深圳A股：SZ  
 &emsp;&emsp;深圳主板A股：SZ_MAIN  
 &emsp;&emsp;深圳中小板：SZ_SME  
 &emsp;&emsp;深圳创业板：SZ_GE  
-**basic_indices**：采用基本面选股模式，字符串，表示若干个基本面变量条件，eg `pe>=15`表示市盈率不低于15，不同条件之间用";"连接。目前支持的基本面变量如下（大小写皆可）：  
+&emsp;&emsp;香港全部股票：HK  
+&emsp;&emsp;香港恒生指数成分股：HK_HS  
+&emsp;&emsp;港股中资股(含H股、红筹股、中资民营股)：HK_CN    
+&emsp;&emsp;香港主板上市股票：HK_MAIN  
+&emsp;&emsp;美股全部股票：US  
+&emsp;&emsp;美股中概股：US_CCS  
+<font color="red">Tips:支持用户输入不在程序默认输入的wind板块代码。识别到用户输入以上列示`global_spec`以外参数，会输出Waring信息。用户查询需要板块的方法：  
+&emsp;&emsp;`wind终端`->`量化`->`API接口`->`板块函数（WSEE）`->`板块查询`->`(查找所需板块“板块ID”字段)`。eg.进行以下搜索：`沪深股票`->`香港股票`->`港股市场类`->`H股`->`a002010500000000`</font>   
+**basic_indices**：采用基本面选股模式，字符串，表示若干个基本面变量条件，eg `pe>=15`表示市盈率不低于15，不同条件之间用";"连接。目前支持的基本面变量如下（大小写皆可）。<font color="red">注意如果所有子行业都具体填写了相应筛选条件，那么本行可以缺省；此参数用于子行业筛选有缺省时的默认筛选条件</font>：  
 &emsp;&emsp;市盈率TTM：pe  
 &emsp;&emsp;市值：ev  
 &emsp;&emsp;市净率：pb  
@@ -82,7 +90,36 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;净利润两年平均复合增长率：netprofit_cagr  
 &emsp;&emsp;资产负债率：debt_ratio  
 &emsp;&emsp;经营活动净现金流/经营利润TTM：ocf2op  
-<font color="red">注意：所有类似市值的参数单位都是1（原始货币）；roe，dividendyield, est_netprofit,debt_ratio,netprofit_cagr,ocf2op表示为百分数（eg.如15%只需写15）</font>  
+&emsp;&emsp;30天平均收益率：amt30d  
+<font color="red">注意：1.所有类似市值的参数单位都是1（原始货币）；roe，dividendyield, est_netprofit,debt_ratio,netprofit_cagr,ocf2op表示为百分数（eg.如15%只需写15）。  
+2.est_netprofit,netprofit_cagr以及ocf2op等衍生指标在港股和美股可得数据中数据缺失值较多，可能难以用于筛选；在使用时应当注意。  
+3.接受用户输入不在程序默认常用指标，输入应当为合法wind指标。所有合法指标可通过以下方式进行查询：  
+`wind金融终端`->`量化`->`API接口`->`代码生成器`->`多维数据（WSS）`->`沪深股票`->`市场类`->`上证A股`->`(任选若干只股票)`->`下一步`->`(点开需要的指标，并将“字段”列示的wind指标名称作为参数传入)`。例如，点选`财务数据`->`资本结构`->`资产负债率`->`debttoassets`。  
+4.在选择指标时，可少量运行检查数据是否完整（选择好指标后，`下一步`->`直接运行`）。如果需要使用港股和美股数据，更应当检查数据是否有过多缺失值；在每次调整股票池时如果待选股票的指标存在缺失值，将被认为不满足条件。</font>    
+**energy2**：表示GICS行业分类标准下“能源Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**materials2**：表示GICS行业分类标准下“材料Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**capital_goods**：表示GICS行业分类标准下“资本货物”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**commercial_prof_serv**：表示GICS行业分类标准下“商业和专业服务”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**transportation**：表示GICS行业分类标准下“运输”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**automobiles**：表示GICS行业分类标准下“汽车与汽车零部件”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**consumer_durables_apparel**：表示GICS行业分类标准下“耐用消费品与服装”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**consumer_serv2**：表示GICS行业分类标准下“消费者服务Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**media2**：表示GICS行业分类标准下“媒体Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**retailing2**：表示GICS行业分类标准下“零售业”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**food_retailing2**：表示GICS行业分类标准下“食品与主要用品零售Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**food_bev_tobacco**：表示GICS行业分类标准下“食品、饮料与烟草”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**household**：表示GICS行业分类标准下“家庭与个人用品”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**healthcare_equip_serv**：表示GICS行业分类标准下“医疗保健设备与服务”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**pharm_biotech**：表示GICS行业分类标准下“制药、生物科技与生命科学”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**banks**：表示GICS行业分类标准下“银行”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**diver_financials**：表示GICS行业分类标准下“多元金融”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**insurance2**：表示GICS行业分类标准下“保险Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**software_serv**：表示GICS行业分类标准下“软件与服务”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**tech_hardware_equip**：表示GICS行业分类标准下“技术硬件与设备”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**semiconductors2**：表示GICS行业分类标准下“半导体与半导体生产设备”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**telecommun_serv**：表示GICS行业分类标准下“电信服务Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**utilities2**：表示GICS行业分类标准下“公用事业Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
+**real_estate2**：表示GICS行业分类标准下“房地产Ⅱ”行业的基本面筛选条件，语法格式同`basic_indices`，但是仅适用于该行业内的条件选股;缺省此行会采用`basic_indices`填补。  
 **refresh_freq**：采用基本面选股模式，字符串，表示每隔多久刷新一次股票池。目前支持1M, 2M, 3M, 4M, 5M, 6M，分别表示每隔1个月到6个月。注意，该参数不受回测频率`frequency`影响，但是刷新次数与回测时间长度（`start_time`, `end_time`）有关。  
 **ics**：采用基本面选股模式，字符串，二级行业分类标准。默认选用wind行业分类(industry_gics)，较常用的分类标准如下：  
 &emsp;&emsp;wind行业分类：industry_gics  
@@ -100,9 +137,11 @@ g. 双击`Mkv_start.exe`开始程序，程序将尝试从`configParam_mkv.conf`�
 &emsp;&emsp;结果将以`.xlsx`格式输出到设定的`work_file`文件夹下，命名包含相关参数设定。
 ##### 3.1*back-test*模式
 &emsp;&emsp;输出文件命名为*mkv_{code_file/target_index/global_spec}_{longOnly,short}_yyyymm-yyyymm_freq{M,W,D}.xlsx*，其中*code_file*为用户提供的输入文件名，*yyyymm*表示回测起始时间和结束时间。输出文件包含3+T张表：
-+ **sheet1:weights**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示对应月末时点的优化权重结果。
-+ **sheet2:portfolio monthly return**：各月末回测结果在下一个月持仓组合的收益率表现。
-+ **sheet3:{num_d}-day mean returns**：第一列code，表示股票代码；第二列name表示股票简称；之后各列表示 在至每个月末时点过去`num_d`个交易日的股票的平均日收益率。用于检测优化结果表现。
++ **sheet1:weights**：第一行code，表示股票代码；第二行name表示股票简称；之后各行表示对应频率末时点的优化权重结果。
++ **sheet2:portfolio monthly return**：各频率末回测结果在下一个周期持仓组合的收益率表现。
++ **sheet3:{num_d}-day mean returns**：第一行code，表示股票代码；第二行name表示股票简称；之后各行表示 在至每个月末时点过去`num_d`个交易日的股票的平均日收益率。用于检测优化结果表现。
++ **sheet4:portfolio daily returns**：回测期间内，从第一次持仓直到回测结束的每个交易日滚动收益率。即表示从第$t-1$个交易日到第$t$个交易日的组合简单收益率。注意实际上，由于资产价格变化，在前一次调仓后到下一次调仓前，组合的权重都在不断变化。本表列示的收益率是考虑了权重变化后的收益率，即$$p_t=\sum_{i=1}^N=w_{i,t}r_{i,t}$$  记每次调仓后的权重为$w_{i,0}$,在第t-1天收盘后，重新计算当天价格改变对于组合内各资产权重的更新：$$w_t=\frac{w_{t-1}\odot (1+r_{t-1})}{w_{t-1} \cdot (1+r_{t-1})}$$   
+
 <!-- + **sheet4~T:Cov_{t}**：输出回测至各个月末时点前`num_d`个交易日期间股票的协方差矩阵估计。用于检测优化结果。 -->
 ##### 3.2*real-time*模式
 &emsp;&emsp;输出文件命名为*mkv_{code_file}_{longOnly,short}_yymmdd.xlsx*，其中*code_file*为用户提供的输入文件名，*yymmdd*为`calc_time`的时间简写。输出文件包含3张表：
@@ -131,23 +170,47 @@ work_file = C:/Users/zhangchangsheng/Desktop/Mkv_output
 mode = 1
 vol = 0.15
 short = 0
-max_weight = 0.1
+max_weight = 0.08
 cash_return = 0.02
 
 [calculation]
 calc_time = 2018-12-05 09:33:00
 num_d = 64
-start_time = 2006-12-08
-end_time = 2007-05-05
+start_time = 2017-06-01
+end_time = 2017-10-02
 frequency = M
 
 [filter]
-global_spec = SH
-basic_indices = pe>=20;roe>=4;est_netprofit>10;debt_ratio<=50;netprofit_cagr>=15
+global_spec = HK_CN;a002010600000000
+basic_indices = pe_ttm<=40;ev>=8000000000
 refresh_freq = 1M
 ics = industry_gics
 ics_fv = ev
 ics_rank = 2:8
+energy2 =
+materials2 =
+capital_goods =
+commercial_prof_serv =
+transportation =
+automobiles =
+consumer_durables_apparel =
+consumer_serv2 =
+media2 =
+retailing2 =
+food_retailing2 =
+food_bev_tobacco =
+household =
+healthcare_equip_serv =
+pharm_biotech =
+banks = pe>10;roe>10
+diver_financials =
+insurance2 =
+software_serv =
+tech_hardware_equip =
+semiconductors2 =
+telecommun_serv =
+utilities2 =
+real_estate2 = 
 ```
 这是配置文件初始化模板，用户可自行修改该文件或者通过运行程序输入参数修改和配置该文件。
 + `Manage.set_code_file(self)`用于从键盘读入文件地址，需要输入完整地址；如果无需更改之前的文件名，可以空白输入并Enter跳过。通过调用`os.path.isfile`检验是否存在该文件，如果文件有误则提示重新输入。
