@@ -8,6 +8,7 @@ from os import path
 from openpyxl import load_workbook
 from xlrd import open_workbook
 from Mkv_spec import MkvSpec
+from time import sleep
 
 
 class BTcodes:
@@ -18,6 +19,7 @@ class BTcodes:
         self.target_index = None
         self.global_spec = None
         self.indices = None
+        self.ics_indices = None
         self.ics = None
         self.ics_fv = None
         self.ics_rank = None
@@ -25,6 +27,7 @@ class BTcodes:
         self.spec_obj = None
         if not w.isconnected():
             w.start()
+            sleep(3)
 
     def set_codes_env(self, params):
         if self.input_mode == 3:
@@ -37,13 +40,15 @@ class BTcodes:
             self.ics = params["ics"]
             self.ics_fv = params["ics_fv"]
             self.ics_rank = params["ics_rank"]
+            self.ics_indices = params["ics_indices"]
             self.refresh_freq = int(params["refresh_freq"][0])
             self.spec_obj = MkvSpec(spec=self.global_spec,
                                     mode="run",
                                     basic_indices=self.indices,
                                     ics=self.ics,
                                     ics_fv=self.ics_fv,
-                                    ics_rank=self.ics_rank)
+                                    ics_rank=self.ics_rank,
+                                    ics_indices=self.ics_indices)
 
     def get_current_codes(self, date, month_id):
         if self.input_mode == 3:

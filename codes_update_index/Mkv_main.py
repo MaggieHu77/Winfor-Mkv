@@ -4,6 +4,7 @@
 from configparser import ConfigParser
 from Mkv_constant import *
 from os import path, makedirs, mkdir
+import sys
 # import win32com.client as wc
 from openpyxl import load_workbook, Workbook
 from xlrd import open_workbook
@@ -13,6 +14,8 @@ from Mkv_pointwise_dates import BTdate
 from Mkv_pointwise_codes import BTcodes
 from Mkv_eval import MkvEval
 from datetime import date, datetime
+from collections import OrderedDict
+import numpy as np
 import traceback
 import pandas as pd
 from WindPy import w
@@ -41,6 +44,8 @@ class Manage:
         self.cons_vol = DEFAULT_VOL / N ** 0.5
         self.calc_now = False
         self.short = None
+        self.indices = ""
+        self.ics_indices = {}
         self.codes = []
         self.stocks = []
         self.stocks_panel = {}
@@ -100,15 +105,25 @@ class Manage:
         self.target_index = self.conf.get("dir", "target_index")
         if not self.target_index:
             self.read_global_spec()
+        else:
+            if (self.target_index[-2:].upper() not in ["SH", "SZ"]) and (self.frequency == "H"):
+                print("FrequencyError: 小时级别运行仅支持A股指数")
+                sys.exit(1)
 
     def read_global_spec(self):
         """
         从configuration文件中读取基本面过滤全局股票空间，通常是某个全市场指数
+        多个全局控件用;分隔
         :return:
         """
         self.global_spec = self.conf.get("filter", "global_spec")
         if not self.global_spec:
             self.read_code_file()
+        else:
+            if self.frequency == "H":
+                print("FrequencyError: 小时级别运行不支持基本面筛选模式")
+            else:
+                self.global_spec = self.global_spec.strip(" ").split(";")
 
     def read_code_file(self):
         """
@@ -120,6 +135,7 @@ class Manage:
         while flag:
             if not path.isfile(self.code_dir):
                 self.code_dir = input(FILE_EXIST_MSG)
+                sys.exit(1)
             else:
                 flag = False
                 self.conf.set("dir", "code_file", self.code_dir)
@@ -199,7 +215,8 @@ class Manage:
 
         self.frequency = self.conf.get("calculation", "frequency")
         if self.mode != 2:
-            assert isinstance(self.frequency, str) and self.frequency.upper() in ["M", "W", "D"], \
+            assert isinstance(self.frequency, str) and self.frequency.upper() in ["M", "W",
+                                                                                  "D", "H"], \
                 "输入回测频率'%s'不支持" % self.frequency
 
     def read_calc_time(self):
@@ -263,6 +280,14 @@ class Manage:
         :return:
         """
         self.indices = self.conf.get("filter", "basic_indices")
+        ics = list(ICS2_DICT.keys())
+        for ii in ics:
+            cond_ = self.conf.get("filter", ii)
+            if not cond_:
+                assert self.indices, f"ParameterError: {ii} " \
+                                     f"基本面变量缺失，无法basic_indices替代，因为basic_indices缺失"
+                cond_ = self.indices
+            self.ics_indices.update({ICS2_DICT[ii]: cond_})
 
     def read_refresh_freq(self):
         """
@@ -348,13 +373,14 @@ class Manage:
                             "ics": self.ics,
                             "ics_fv": self.ics_fv,
                             "ics_rank": self.ics_rank,
-                            "refresh_freq": self.refresh_freq}
+                            "refresh_freq": self.refresh_freq,
+                            "ics_indices": self.ics_indices}
         codes_object = BTcodes(input_mode=self.input_mode)
         codes_object.set_codes_env(params=input_params)
         for tt, month_id in self.t_seq:
             print(f"-正在回测时点{tt}")
             codes = codes_object.get_current_codes(date=tt, month_id=month_id)
-            stocks = create_stocks(codes, self.num_d, tt, False)
+            stocks = create_stocks(codes, self.num_d, self.frequency, tt, False)
             self.stocks_panel.update({tt: stocks})
             params = calc_params(stocks, self.short)
             params.update({"vol": self.cons_vol, "up": self.up, "cash_r": self.cash_r})
@@ -362,15 +388,14 @@ class Manage:
             self.cov_panel.update({tt: params["cov"]})
             w = optimizer(params)
             self.w_panel.update({tt: w})
-            import numpy as np
             print(f"--Backtest[{tt}] output:{np.matmul(np.matmul(np.array(w), params['cov']), np.array(w).T)}")
             print(f"--constraint:{self.cons_vol**2}")
         self.t_seq = [tt[0] for tt in self.t_seq]
         self.t_eval_seq = self.bt_obj.get_eval_dates(ref_seq=self.t_seq)
-        if self.input_mode == 3:
-            self.write_output1()
+        if self.input_mode == 3 and (self.frequency != "H"):
+            self.write_output1(write_daily=True)
         else:
-            self.write_output1d()
+            self.write_output1d(write_daily=True)
 
     def set_params2(self, q=True):
         """
@@ -387,7 +412,8 @@ class Manage:
                             "ics": self.ics,
                             "ics_fv": self.ics_fv,
                             "ics_rank": self.ics_rank,
-                            "refresh_freq": self.refresh_freq}
+                            "refresh_freq": self.refresh_freq,
+                            "ics_indices": self.ics_indices}
         codes_object = BTcodes(input_mode=self.input_mode)
         codes_object.set_codes_env(params=input_params)
         self.codes = codes_object.get_current_codes(date=datetime.now().strftime("%Y-%m-%d"),
@@ -395,14 +421,14 @@ class Manage:
         if not q:
             self.stocks = create_stocks(self.codes,
                                         self.num_d,
+                                        self.frequency,
                                         datetime(*self.calc_t.values()).strftime("%Y-%m-%d"),
                                         q=q)
         else:
-            self.stocks = create_stocks(self.codes, self.num_d)
+            self.stocks = create_stocks(self.codes, self.num_d, self.frequency)
         self.params = calc_params(self.stocks, self.short)
         self.params.update({"vol": self.cons_vol, "up": self.up, "cash_r": self.cash_r})
         self.w = optimizer(self.params)
-        import numpy as np
         print(
             f"output:"
             f"{np.matmul(np.matmul(np.array(self.w), self.params['cov']), np.array(self.w).T)}\n"
@@ -444,16 +470,22 @@ class Manage:
                     sleep(delta_t)
                     self.set_params2()
 
-    def write_output1(self):
+    def write_output1(self, write_daily=False):
         print("%正在写入结果到文件...")
         wb = Workbook()
         s1 = wb.active
         s1.title = "weights"
         s2 = wb.create_sheet()
-        token = {"M": "monthly", "W": "weekly", "D": "daily"}[self.frequency]
+        token = {"M": "monthly", "W": "weekly", "D": "daily", "H": "hourly"}[self.frequency]
         s2.title = "portfolio %s returns" % token
         s3 = wb.create_sheet()
         s3.title = f"{self.num_d}-day mean returns"
+        s4 = None
+        if write_daily and (token not in ["daily", "hourly"]):
+            s4 = wb.create_sheet()
+            s4.title = f"portfolio daily returns"
+        elif write_daily and token == "hourly":
+            print("Warning: 组合回测外期间日频收益率追踪暂不支持小时级别调仓")
         self.codes = [s.code for s in self.stocks_panel[self.t_seq[0]]]
         # 写第一张表回测各周期weights
         col11 = ["code"] + self.codes + ["cash"]
@@ -462,7 +494,8 @@ class Manage:
         content1 = [col11, col12]
         for tt in self.t_seq:
             content1.append([tt] + self.w_panel[tt])
-        content1 = list(zip(*content1))
+        # 采取长表形式，时间为行索引
+        # content1 = list(zip(*content1))
         for row in content1:
             s1.append(row)
         # 写第二张表回测权重持有至下一期的组合期间收益率
@@ -475,15 +508,40 @@ class Manage:
         col22 = ["portfolio return(%)"] + \
                 [dot(self.w_panel[self.t_seq[t]], returns[t]) for t in
                                          range(len(self.t_seq))]
-        s2.append(["evaluation_date"] + self.t_eval_seq)
-        s2.append(col22)
+        col21 = ["evaluation_date"] + self.t_eval_seq
+        content2 = list(zip(col21, col22))
+        for rr in content2:
+            s2.append(rr)
+
         # 写第三张表
         content3 = [col11, col12]
         for tt in self.t_seq:
             content3.append([tt] + self.mu_panel[tt] + [self.cash_r])
-        content3 = list(zip(*content3))
+        # content3 = list(zip(*content3))
         for row in content3:
             s3.append(row)
+
+        if s4 is not None:
+            # write portfolio holding daily return
+            # call a MkvEval object to calculate daily returns
+            eval_start_ = w.tdaysoffset(1, self.t_seq[0]).Data[0][0].strftime("%Y-%m-%d")
+            eval_end_ = self.t_eval_seq[-1]
+            eval_obj2 = MkvEval(eval_seq=[eval_start_, eval_end_],
+                                cash_r=self.cash_r,
+                                freq="D",
+                                stocks=self.codes)
+            returns2, eval_t_ = eval_obj2.eval_returns(var="pct_chg")
+            row_h = ["evaluation_date", "portfolio daily return(%)"]
+            s4.append(row_h)
+            pre_w = None
+            pre_r = None
+            for tt in range(len(eval_t_)):
+                # 该交易日初的权重
+                cur_w = lookup_w(w_panel=self.w_panel, t=eval_t_[tt], pre_w=pre_w, pre_r=pre_r)
+                cur_r = np.dot(cur_w, returns2[tt])
+                s4.append([eval_t_[tt], cur_r])
+                pre_w = cur_w
+                pre_r = returns2[tt]
 
         # 写回测期间协方差的表
         # for t in range(len(self.t_seq)):
@@ -498,18 +556,25 @@ class Manage:
         wb.save(output_dir)
         print(f"%结果输出到：{output_dir}")
 
-    def write_output1d(self):
+    def write_output1d(self, write_daily=False):
         print("%正在写入结果到文件...")
         wb = Workbook()
         s1 = wb.active
         s1.title = "weights"
         s2 = wb.create_sheet()
-        token = {"M": "monthly", "W": "weekly", "D": "daily"}[self.frequency]
+        token = {"M": "monthly", "W": "weekly", "D": "daily", "H": "hourly"}[self.frequency]
         s2.title = "portfolio %s returns" % token
         s3 = wb.create_sheet()
         s3.title = f"{self.num_d}-day mean returns"
+        s4 = None
+        if write_daily and (token not in ["daily", "hourly"]):
+            s4 = wb.create_sheet()
+            s4.title = f"portfolio daily returns"
+        elif write_daily and token == "hourly":
+            print("Warning: 组合回测外期间日频收益率追踪暂不支持小时级别调仓")
         # 写第一张表回测各周期weights
-        content1 = dict2list(stock_pannel=self.stocks_panel, var_pannel=self.w_panel)
+        content1 = dict2list(stock_pannel=self.stocks_panel, var_pannel=self.w_panel,
+                             date_first=True)
         for row in content1:
             s1.append(row)
         # 写第二张表回测权重持有至下一期的组合期间收益率
@@ -526,14 +591,50 @@ class Manage:
                                               var="pct_chg")
 
             col22.append(dot(self.w_panel[self.t_seq[t]], returns))
-        s2.append(["evaluation_date"] + self.t_eval_seq)
-        s2.append(col22)
+        col21 = ["evaluation_date"] + self.t_eval_seq
+        content2 = list(zip(col21, col22))
+        for rr in content2:
+            s2.append(rr)
+        # s2.append(["evaluation_date"] + self.t_eval_seq)
+        # s2.append(col22)
+
         # 写第三张表
         content3 = dict2list(stock_pannel=self.stocks_panel,
                              var_pannel=self.mu_panel,
-                             suffix=[self.cash_r])
+                             suffix=[self.cash_r],
+                             date_first=True)
         for row in content3:
             s3.append(row)
+
+        # 写第四张表
+        if s4 is not None:
+            eval_obj2 = MkvEval(eval_seq=self.t_eval_seq,
+                                cash_r=self.cash_r,
+                                freq="D",
+                                stocks=[])
+            row_h = ["evaluation_date", "portfolio daily return(%)"]
+            s4.append(row_h)
+
+            for t in range(len(self.t_eval_seq)):
+                codes = [s.code for s in self.stocks_panel[self.t_seq[t]]]
+                returns2, eval_t_ = eval_obj2.eval_returns_drange(
+                                                       codes=codes,
+                                                       eval_begin=self.t_seq[t],
+                                                       eval_end=self.t_eval_seq[t],
+                                                       var="pct_chg",
+                                                       get_t_seq=True)
+                returns2.pop(0)
+                eval_t_.pop(0)
+                pre_w = None
+                pre_r = None
+                for tt in range(len(eval_t_)):
+                    # 该交易日初的权重
+                    cur_w = lookup_w(w_panel=self.w_panel, t=eval_t_[tt], pre_w=pre_w, pre_r=pre_r)
+                    cur_r = np.dot(cur_w, returns2[tt])
+                    s4.append([eval_t_[tt], cur_r])
+                    pre_w = cur_w
+                    pre_r = returns2[tt]
+
         # 写回测期间协方差的表
         # for t in range(len(self.t_seq)):
         #     exec(f"s{4 + t}=wb.create_sheet()")
@@ -644,7 +745,7 @@ def test_read_codes(f="C:/Users/Maggie/Desktop/test.xls"):
 
 
 # helper func: merge weights in different sets of stock pools
-def dict2list(stock_pannel, var_pannel, suffix=None):
+def dict2list(stock_pannel, var_pannel, suffix=None, date_first=False):
     """
     这个函数扩展性不佳，为了分隔较复杂的数据形式重组功能
     :param stock_pannel: 包含回测全部权股票基本信息的字典数据
@@ -689,7 +790,37 @@ def dict2list(stock_pannel, var_pannel, suffix=None):
     df = df.append(cash_row)
     df2list = df.values.tolist()
     df2list.insert(0, df.columns.tolist())
+    if date_first:
+        df2list = list(zip(*df2list))
     return df2list
+
+
+def lookup_w(w_panel, t, pre_w=None, pre_r=None):
+    """
+    用于返回对应高频（这里是daily）日期在回测期间的权重（调频周期为低频周、月）
+    :param w_panel: dict，在调仓日（收盘后）的对应新权重（下一
+    :param t: str, 需要确定组合日收益率的当日
+    :param pre_w: list, 前2交易日收盘后的权重，即是前1交易日开盘前权重
+    :param pre_r: list, 前1交易日当天收益率
+    # :param log_rt: bool,是否计算的是对数收益率；如果是对数收益率则具备可加性，日度价格变化引起的权重变化可以忽略
+    :return: list,t当日开盘前权重
+    """
+    assert isinstance(w_panel, dict), "TypeError: w_panel should be type dict"
+    # 按时间顺序排序
+    w_panel = OrderedDict(sorted(w_panel.items(), key=lambda k: k[0]))
+    rebalance_seq = list(w_panel.keys())
+    # 由上期莫转换到本期初
+    rebalance_seq_ = list(map(lambda tt: w.tdaysoffset(1, tt).Data[0][0].strftime("%Y-%m-%d"),
+                         rebalance_seq))
+    if t[:10] in rebalance_seq_:
+        idx = rebalance_seq_.index(t[:10])
+        cur_w = w_panel[rebalance_seq[idx]]
+
+    else:
+        # 价格变化导致每天的实际权重发生变化
+        cur_w = list(np.array(pre_w) * (np.array(pre_r) + 1) / np.dot(np.array(pre_r) + 1,
+                                                                 np.array(pre_w)))
+    return cur_w
 
 
 if __name__ == "__main__":
