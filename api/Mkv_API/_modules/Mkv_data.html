@@ -1,0 +1,208 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh_cn">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mkv_data &#8212; mkv v0.6.2.190517_beta 文档</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/translations.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Mkv_data 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding:utf-8 -*-</span>
+<span class="c1"># ! python3</span>
+<span class="kn">from</span> <span class="nn">WindPy</span> <span class="k">import</span> <span class="n">w</span>
+<span class="kn">from</span> <span class="nn">Mkv_constant</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="k">import</span> <span class="n">lil_matrix</span>
+<span class="kn">from</span> <span class="nn">nearPD</span> <span class="k">import</span> <span class="n">nearestPD</span>
+
+
+<div class="viewcode-block" id="Stock"><a class="viewcode-back" href="../Mkv_data.html#Mkv_data.Stock">[文档]</a><span class="k">class</span> <span class="nc">Stock</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">mkt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        设定股票基本信息</span>
+<span class="sd">        :param code: 股票WIND代码</span>
+<span class="sd">        :param name: 股票名称</span>
+<span class="sd">        :param mkt: 股票上市交易的交易所</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mkt</span> <span class="o">=</span> <span class="n">mkt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="Stock.input_return"><a class="viewcode-back" href="../Mkv_data.html#Mkv_data.Stock.input_return">[文档]</a>    <span class="k">def</span> <span class="nf">input_return</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rts</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        设定股票历史日收益率</span>
+<span class="sd">        :param rts:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">rts</span></div>
+
+<div class="viewcode-block" id="Stock.input_time"><a class="viewcode-back" href="../Mkv_data.html#Mkv_data.Stock.input_time">[文档]</a>    <span class="k">def</span> <span class="nf">input_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        设定股票日收益率日期</span>
+<span class="sd">        :param time:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">time</span></div></div>
+
+
+<div class="viewcode-block" id="create_stocks"><a class="viewcode-back" href="../Mkv_data.html#Mkv_data.create_stocks">[文档]</a><span class="k">def</span> <span class="nf">create_stocks</span><span class="p">(</span><span class="n">codes</span><span class="p">,</span> <span class="n">num_d</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">q</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    提取样本收益率</span>
+<span class="sd">    :param codes: 股票代码列表</span>
+<span class="sd">    :param num_d: 数据日期长度</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stocks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">today</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">w</span><span class="o">.</span><span class="n">isconnected</span><span class="p">():</span>
+        <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">q</span><span class="p">:</span>
+        <span class="n">fd</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">tdaysoffset</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">num_d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">today</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">td</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">tdaysoffset</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">today</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">res11</span><span class="p">,</span> <span class="n">res12</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">),</span> <span class="n">STOCK_SEC</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span>
+        <span class="n">res2</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wsd</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">),</span> <span class="s2">&quot;pct_chg&quot;</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">td</span><span class="p">)</span>
+        <span class="n">res3</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wsq</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">),</span> <span class="s2">&quot;rt_pct_chg&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">codes</span><span class="p">)):</span>
+            <span class="n">stocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Stock</span><span class="p">(</span><span class="n">codes</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="n">res11</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="n">res12</span><span class="p">[</span><span class="n">c</span><span class="p">]))</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">input_return</span><span class="p">([</span><span class="nb">round</span><span class="p">(</span><span class="n">r</span> <span class="o">/</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">res2</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="n">c</span><span class="p">]])</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">input_time</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">res2</span><span class="o">.</span><span class="n">Times</span><span class="p">])</span>
+            <span class="n">res3</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">res3</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res3</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">today</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fd</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">tdaysoffset</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">num_d</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">end</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">td</span> <span class="o">=</span> <span class="n">end</span>
+        <span class="n">res11</span><span class="p">,</span> <span class="n">res12</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">),</span> <span class="n">STOCK_SEC</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span>
+        <span class="n">res2</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wsd</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">codes</span><span class="p">),</span> <span class="s2">&quot;pct_chg&quot;</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">td</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">codes</span><span class="p">)):</span>
+            <span class="n">stocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Stock</span><span class="p">(</span><span class="n">codes</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="n">res11</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="n">res12</span><span class="p">[</span><span class="n">c</span><span class="p">]))</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">input_return</span><span class="p">([</span><span class="nb">round</span><span class="p">(</span><span class="n">r</span> <span class="o">/</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">res2</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="n">c</span><span class="p">]])</span>
+            <span class="n">stocks</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">input_time</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">res2</span><span class="o">.</span><span class="n">Times</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">stocks</span></div>
+
+
+<div class="viewcode-block" id="calc_params"><a class="viewcode-back" href="../Mkv_data.html#Mkv_data.calc_params">[文档]</a><span class="k">def</span> <span class="nf">calc_params</span><span class="p">(</span><span class="n">stocks</span><span class="p">,</span> <span class="n">cash_r</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    计算均值向量，协方差矩阵</span>
+<span class="sd">    :param stocks:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">param</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stocks</span><span class="p">)</span>
+    <span class="n">mtx_r</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">r</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stocks</span><span class="p">]</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mtx_r</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">4</span><span class="p">))</span>
+    <span class="c1"># mtx_r.append([cash_r] * len(mtx_r[0]))</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">mtx_r</span><span class="p">)</span>
+    <span class="c1"># 检验半正定性</span>
+    <span class="n">eig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvals</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="n">issd</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">eig</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;风险资产矩阵是否半正定?&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">issd</span><span class="p">))</span>
+
+    <span class="c1"># # 如果不通过正定性检验，需要进行remedy</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">issd</span><span class="p">:</span>
+        <span class="n">cov_pd</span> <span class="o">=</span> <span class="n">nearestPD</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="c1">#     eigv, eigc = np.linalg.eig(cov)</span>
+    <span class="c1">#     eigv = [v if v &gt;= 0 else 0 for v in eigv]  # 如果有负的特征值，设为零</span>
+    <span class="c1">#     cov = np.matmul(np.matmul(eigc, np.diag(eigv)), eigc.T)</span>
+    <span class="c1">#     issdp = bool(np.all(np.linalg.eigvals(cov) &gt;= 0))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cov_pd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+    <span class="n">cov1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stocks</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stocks</span><span class="p">)))</span>
+    <span class="n">cov1</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">stocks</span><span class="p">),</span> <span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">stocks</span><span class="p">)]</span> <span class="o">=</span> <span class="n">cov_pd</span>
+    <span class="n">eig1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvals</span><span class="p">(</span><span class="n">cov1</span><span class="p">)</span>
+    <span class="n">issd1</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">eig1</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;扩展矩阵是否半正定?&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">issd1</span><span class="p">))</span>
+    <span class="c1"># cov_pd = nearestPD(cov)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">lil_matrix</span><span class="p">(</span><span class="n">cov1</span><span class="p">)</span>
+    <span class="n">q_data</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">data</span>
+    <span class="n">q_rows</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">rows</span>
+    <span class="n">qsubi</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">qsubj</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">qval</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_rows</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_rows</span><span class="p">[</span><span class="n">i</span><span class="p">])):</span>
+            <span class="k">if</span> <span class="n">q_rows</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">i</span><span class="p">:</span>
+                <span class="n">qsubi</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">qsubj</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q_rows</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">])</span>
+                <span class="n">qval</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q_data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">])</span>
+    <span class="n">param</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;numvar&quot;</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&quot;mu&quot;</span><span class="p">:</span> <span class="n">mu</span><span class="p">,</span> <span class="s2">&quot;qsubi&quot;</span><span class="p">:</span> <span class="n">qsubi</span><span class="p">,</span> <span class="s2">&quot;qsubj&quot;</span><span class="p">:</span> <span class="n">qsubj</span><span class="p">,</span> <span class="s2">&quot;qval&quot;</span><span class="p">:</span> <span class="n">qval</span><span class="p">})</span>
+    <span class="n">cov_init</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">cov_init</span><span class="p">[:</span><span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">:</span><span class="n">cov</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cov</span>
+    <span class="n">param</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;cov&#39;</span><span class="p">:</span> <span class="n">cov_init</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">param</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">模块代码</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Maggie Hu.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

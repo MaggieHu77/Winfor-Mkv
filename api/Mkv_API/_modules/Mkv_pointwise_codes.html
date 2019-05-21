@@ -1,0 +1,209 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh_cn">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mkv_pointwise_codes &#8212; mkv v0.6.2.190517_beta 文档</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/translations.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Mkv_pointwise_codes 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding:utf-8 -*-</span>
+<span class="c1"># ! python3</span>
+
+
+<span class="kn">from</span> <span class="nn">WindPy</span> <span class="k">import</span> <span class="n">w</span>
+<span class="kn">from</span> <span class="nn">Mkv_constant</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">openpyxl</span> <span class="k">import</span> <span class="n">load_workbook</span>
+<span class="kn">from</span> <span class="nn">xlrd</span> <span class="k">import</span> <span class="n">open_workbook</span>
+<span class="kn">from</span> <span class="nn">Mkv_spec</span> <span class="k">import</span> <span class="n">MkvSpec</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span>
+
+
+<div class="viewcode-block" id="BTcodes"><a class="viewcode-back" href="../Mkv_pointwise_codes.html#Mkv_pointwise_codes.BTcodes">[文档]</a><span class="k">class</span> <span class="nc">BTcodes</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    generate stocks codes in back-test&#39;s every rebalance dates</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_mode</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_mode</span> <span class="o">=</span> <span class="n">input_mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">codes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_index</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_spec</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_freq</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec_obj</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">w</span><span class="o">.</span><span class="n">isconnected</span><span class="p">():</span>
+            <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BTcodes.set_codes_env"><a class="viewcode-back" href="../Mkv_pointwise_codes.html#Mkv_pointwise_codes.BTcodes.set_codes_env">[文档]</a>    <span class="k">def</span> <span class="nf">set_codes_env</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        设置类参数环境，确定获取回测各期股票代码的模式类型.</span>
+
+<span class="sd">        :param params: dict,参数字典，由Mkv_main.Manage.set_params1函数打包.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mode</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">read_codes</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;code_file&quot;</span><span class="p">]))</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_index</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;target_index&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_spec</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;global_spec&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;basic_indices&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ics</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ics&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ics_fv&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ics_rank&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ics_indices&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh_freq</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;refresh_freq&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spec_obj</span> <span class="o">=</span> <span class="n">MkvSpec</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">global_spec</span><span class="p">,</span>
+                                    <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;run&quot;</span><span class="p">,</span>
+                                    <span class="n">basic_indices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span>
+                                    <span class="n">ics</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ics</span><span class="p">,</span>
+                                    <span class="n">ics_fv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="p">,</span>
+                                    <span class="n">ics_rank</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">,</span>
+                                    <span class="n">ics_indices</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BTcodes.get_current_codes"><a class="viewcode-back" href="../Mkv_pointwise_codes.html#Mkv_pointwise_codes.BTcodes.get_current_codes">[文档]</a>    <span class="k">def</span> <span class="nf">get_current_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">month_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get codes list in given date.</span>
+
+<span class="sd">        :param date: rebalance date, if fmt=&#39;%Y-%m-%d H:M:S&#39;, better to use just date information.</span>
+<span class="sd">        :param month_id: useful in input_mode == 2, control whether filter of stocks needed in</span>
+<span class="sd">        this date.</span>
+
+<span class="sd">        :return: list, stock codes into optimization.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">10</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mode</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">codes</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wset</span><span class="p">(</span><span class="s2">&quot;sectorconstituent&quot;</span><span class="p">,</span>
+                           <span class="n">f</span><span class="s2">&quot;date=</span><span class="si">{date}</span><span class="s2">;windcode=</span><span class="si">{self.target_index}</span><span class="s2">;field=wind_code&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">month_id</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_freq</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;%更新股票筛选...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spec_obj</span><span class="o">.</span><span class="n">get_current_codes</span><span class="p">(</span><span class="n">trade_date</span><span class="o">=</span><span class="n">date</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">codes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div></div>
+
+
+<div class="viewcode-block" id="read_codes"><a class="viewcode-back" href="../Mkv_pointwise_codes.html#Mkv_pointwise_codes.read_codes">[文档]</a><span class="k">def</span> <span class="nf">read_codes</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    从文件中读取股票列表.</span>
+
+<span class="sd">    :param f: 文件路径.</span>
+
+<span class="sd">    :return: list，包含股票字符串.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">b_name</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="n">b_type</span> <span class="o">=</span> <span class="n">b_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">codes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># if b_type == &#39;xls&#39;:</span>
+    <span class="c1">#     # openpyxl不支持xls格式，先转化为xls</span>
+    <span class="c1">#     e = wc.gencache.EnsureDispatch(&#39;Excel.Application&#39;)</span>
+    <span class="c1">#     wb = e.Workbooks.Open(f)</span>
+    <span class="c1">#     wb.SaveAs(f + &#39;x&#39;, FileFormat=51)</span>
+    <span class="c1">#     wb.Close()</span>
+    <span class="c1">#     e.Application.Quit()</span>
+    <span class="c1">#     f = f + &#39;x&#39;</span>
+    <span class="c1">#     b_type = &#39;xlsx&#39;</span>
+    <span class="k">if</span> <span class="n">b_type</span> <span class="o">==</span> <span class="s2">&quot;txt&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">code</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">|;|,|/|&quot;</span><span class="p">)</span>
+            <span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">b_type</span> <span class="o">==</span> <span class="s2">&quot;xlsx&quot;</span><span class="p">:</span>
+        <span class="n">wb</span> <span class="o">=</span> <span class="n">load_workbook</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">sheet</span> <span class="o">=</span> <span class="n">wb</span><span class="o">.</span><span class="n">active</span>
+        <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">sheet</span><span class="o">.</span><span class="n">columns</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">code</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">code</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+                <span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">b_type</span> <span class="o">==</span> <span class="s1">&#39;xls&#39;</span><span class="p">:</span>
+        <span class="n">wb</span> <span class="o">=</span> <span class="n">open_workbook</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">sheet</span> <span class="o">=</span> <span class="n">wb</span><span class="o">.</span><span class="n">sheet_by_index</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">sheet</span><span class="o">.</span><span class="n">col_values</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">code</span><span class="p">:</span>
+                <span class="n">codes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Error: 不支持的文件格式</span><span class="si">{b_type}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">codes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">codes</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">codes</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">模块代码</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Maggie Hu.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

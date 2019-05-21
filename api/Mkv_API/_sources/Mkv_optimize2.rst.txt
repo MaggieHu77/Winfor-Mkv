@@ -1,0 +1,7 @@
+Mkv\_optimize2 module
+=====================
+
+.. automodule:: Mkv_optimize2
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,224 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh_cn">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mkv_eval module &#8212; mkv v0.6.2.190517_beta 文档</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-Mkv_eval">
+<span id="mkv-eval-module"></span><h1>Mkv_eval module<a class="headerlink" href="#module-Mkv_eval" title="永久链接至标题">¶</a></h1>
+<dl class="class">
+<dt id="Mkv_eval.MkvEval">
+<em class="property">class </em><code class="descclassname">Mkv_eval.</code><code class="descname">MkvEval</code><span class="sig-paren">(</span><em>eval_seq</em>, <em>freq</em>, <em>stocks</em>, <em>cash_r</em>, <em>rebalance_h=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_eval.html#MkvEval"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_eval.MkvEval" title="永久链接至目标">¶</a></dt>
+<dd><p>基类：<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>用于计算和处理回测模式下各个区间收益情况.</p>
+<dl class="attribute">
+<dt id="Mkv_eval.MkvEval.cash_r">
+<code class="descname">cash_r</code><a class="headerlink" href="#Mkv_eval.MkvEval.cash_r" title="永久链接至目标">¶</a></dt>
+<dd><p>年化现金收益率.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Mkv_eval.MkvEval.eval_returns">
+<code class="descname">eval_returns</code><span class="sig-paren">(</span><em>var='pct_chg'</em>, <em>get_t_seq=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_eval.html#MkvEval.eval_returns"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_eval.MkvEval.eval_returns" title="永久链接至目标">¶</a></dt>
+<dd><p>在各时间段内持仓股票品种不变的情形下，应用该函数获取每个时点上每只股票对应频率的变量值.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><ul class="first simple">
+<li><strong>var</strong> – str,wind变量名，一般是区间收益率.</li>
+<li><strong>get_t_seq</strong> – bool,是否返回时间序列字符串.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">返回:</th><td class="field-body"><p class="first last">变量集合，日期list.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Mkv_eval.MkvEval.eval_returns12">
+<code class="descname">eval_returns12</code><span class="sig-paren">(</span><em>codes</em>, <em>eval_date</em>, <em>var='pct_chg'</em>, <em>eval_interval_start=None</em>, <em>include_head=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_eval.html#MkvEval.eval_returns12"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_eval.MkvEval.eval_returns12" title="永久链接至目标">¶</a></dt>
+<dd><p>返回特定评估日，所有股票的区间收益率.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><ul class="first simple">
+<li><strong>codes</strong> – list, stock codes.</li>
+<li><strong>eval_date</strong> – str, 评估日当日， fmt=’%Y-%m-%d’或’%Y-%m-%d H:M:S’.</li>
+<li><strong>var</strong> – str或者list, 需要提取的变量，一般是收益率.</li>
+<li><strong>eval_interval_start</strong> – str，区间开始日期，fmt=’%Y-%m-%d’，只有_freq=H时有效,</li>
+<li><strong>skip</strong> – 一次评估基础K线长度，特别用于_freq=H.</li>
+<li><strong>include_head</strong> – 数据开始是否包括左侧区间点.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">返回:</th><td class="field-body"><p class="first last">list or DataFrame，股票变量对象.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Mkv_eval.MkvEval.eval_returns_drange">
+<code class="descname">eval_returns_drange</code><span class="sig-paren">(</span><em>codes</em>, <em>eval_begin</em>, <em>eval_end</em>, <em>var='pct_chg'</em>, <em>get_t_seq=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_eval.html#MkvEval.eval_returns_drange"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_eval.MkvEval.eval_returns_drange" title="永久链接至目标">¶</a></dt>
+<dd><p>获取”D”频率下，指定开始和结束日期内每个K线指定股票变量值.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><ul class="first simple">
+<li><strong>codes</strong> – list,股票代码.</li>
+<li><strong>eval_begin</strong> – str, 开始日期.</li>
+<li><strong>eval_end</strong> – str, 结束日期.</li>
+<li><strong>var</strong> – str, wind变量名.</li>
+<li><strong>get_t_seq</strong> – bool, 是否返回区间内日期.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">返回:</th><td class="field-body"><p class="first last">list or DataFrame, list; 变量对象,日期.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Mkv_eval.MkvEval.eval_returns_hrange">
+<code class="descname">eval_returns_hrange</code><span class="sig-paren">(</span><em>codes</em>, <em>eval_begin</em>, <em>eval_end</em>, <em>skip</em>, <em>var='pct_chg'</em>, <em>get_t_seq=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_eval.html#MkvEval.eval_returns_hrange"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_eval.MkvEval.eval_returns_hrange" title="永久链接至目标">¶</a></dt>
+<dd><p>获取”H”频率下，指定开始和结束日期内每个K线指定股票变量值.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><ul class="first simple">
+<li><strong>codes</strong> – list, 股票代码.</li>
+<li><strong>eval_begin</strong> – str, 开始时间.</li>
+<li><strong>eval_end</strong> – str, 结束时间.</li>
+<li><strong>skip</strong> – int, 区间内K线数量.</li>
+<li><strong>var</strong> – str, 变量名.</li>
+<li><strong>get_t_seq</strong> – bool, 是否返回时间list.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">返回:</th><td class="field-body"><p class="first last">list or DataFrame, list; 变量对象,日期.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Mkv_eval.MkvEval.eval_seq">
+<code class="descname">eval_seq</code><a class="headerlink" href="#Mkv_eval.MkvEval.eval_seq" title="永久链接至目标">¶</a></dt>
+<dd><p>回测期间内持仓期末时点.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Mkv_eval.MkvEval.freq">
+<code class="descname">freq</code><a class="headerlink" href="#Mkv_eval.MkvEval.freq" title="永久链接至目标">¶</a></dt>
+<dd><p>回测频率.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Mkv_eval.MkvEval.rebalance_h">
+<code class="descname">rebalance_h</code><a class="headerlink" href="#Mkv_eval.MkvEval.rebalance_h" title="永久链接至目标">¶</a></dt>
+<dd><p>小时级别调仓周期.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Mkv_eval.MkvEval.stocks">
+<code class="descname">stocks</code><a class="headerlink" href="#Mkv_eval.MkvEval.stocks" title="永久链接至目标">¶</a></dt>
+<dd><p>股票代码列表.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>本页</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Mkv_eval.rst.txt"
+            rel="nofollow">显示源代码</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Maggie Hu.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="_sources/Mkv_eval.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

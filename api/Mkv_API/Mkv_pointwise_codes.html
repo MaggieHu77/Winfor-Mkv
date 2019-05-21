@@ -1,0 +1,156 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh_cn">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mkv_pointwise_codes module &#8212; mkv v0.6.2.190517_beta 文档</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-Mkv_pointwise_codes">
+<span id="mkv-pointwise-codes-module"></span><h1>Mkv_pointwise_codes module<a class="headerlink" href="#module-Mkv_pointwise_codes" title="永久链接至标题">¶</a></h1>
+<dl class="class">
+<dt id="Mkv_pointwise_codes.BTcodes">
+<em class="property">class </em><code class="descclassname">Mkv_pointwise_codes.</code><code class="descname">BTcodes</code><span class="sig-paren">(</span><em>input_mode</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_pointwise_codes.html#BTcodes"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_pointwise_codes.BTcodes" title="永久链接至目标">¶</a></dt>
+<dd><p>基类：<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>generate stocks codes in back-test’s every rebalance dates</p>
+<dl class="method">
+<dt id="Mkv_pointwise_codes.BTcodes.get_current_codes">
+<code class="descname">get_current_codes</code><span class="sig-paren">(</span><em>date</em>, <em>month_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_pointwise_codes.html#BTcodes.get_current_codes"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_pointwise_codes.BTcodes.get_current_codes" title="永久链接至目标">¶</a></dt>
+<dd><p>get codes list in given date.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><ul class="first last simple">
+<li><strong>date</strong> – rebalance date, if fmt=’%Y-%m-%d H:M:S’, better to use just date information.</li>
+<li><strong>month_id</strong> – useful in input_mode == 2, control whether filter of stocks needed in</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>this date.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">返回:</th><td class="field-body">list, stock codes into optimization.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Mkv_pointwise_codes.BTcodes.set_codes_env">
+<code class="descname">set_codes_env</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_pointwise_codes.html#BTcodes.set_codes_env"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_pointwise_codes.BTcodes.set_codes_env" title="永久链接至目标">¶</a></dt>
+<dd><p>设置类参数环境，确定获取回测各期股票代码的模式类型.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><strong>params</strong> – dict,参数字典，由Mkv_main.Manage.set_params1函数打包.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="Mkv_pointwise_codes.read_codes">
+<code class="descclassname">Mkv_pointwise_codes.</code><code class="descname">read_codes</code><span class="sig-paren">(</span><em>f</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/Mkv_pointwise_codes.html#read_codes"><span class="viewcode-link">[源代码]</span></a><a class="headerlink" href="#Mkv_pointwise_codes.read_codes" title="永久链接至目标">¶</a></dt>
+<dd><p>从文件中读取股票列表.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">参数:</th><td class="field-body"><strong>f</strong> – 文件路径.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">返回:</th><td class="field-body">list，包含股票字符串.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>本页</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Mkv_pointwise_codes.rst.txt"
+            rel="nofollow">显示源代码</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Maggie Hu.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="_sources/Mkv_pointwise_codes.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

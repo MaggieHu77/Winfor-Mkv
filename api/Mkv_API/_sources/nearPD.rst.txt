@@ -1,0 +1,7 @@
+nearPD module
+=============
+
+.. automodule:: nearPD
+    :members:
+    :undoc-members:
+    :show-inheritance:

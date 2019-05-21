@@ -1,0 +1,458 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh_cn">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mkv_spec &#8212; mkv v0.6.2.190517_beta 文档</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/translations.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Mkv_spec 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding:utf-8 -*-</span>
+<span class="c1"># ! python3</span>
+
+<span class="kn">from</span> <span class="nn">WindPy</span> <span class="k">import</span> <span class="n">w</span>
+<span class="kn">from</span> <span class="nn">Mkv_constant</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">mkv_helper_func</span>
+
+
+<div class="viewcode-block" id="MkvSpec"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec">[文档]</a><span class="k">class</span> <span class="nc">MkvSpec</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    基本面变量筛选回测模式下获取满足条件的股票代码列表.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">field</span> <span class="o">=</span> <span class="s2">&quot;sectorconstituent&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">basic_indices</span><span class="p">,</span> <span class="n">ics_indices</span><span class="p">,</span> <span class="n">ics</span><span class="p">,</span> <span class="n">ics_fv</span><span class="p">,</span> <span class="n">ics_rank</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;run&quot;</span><span class="p">,</span>
+                 <span class="n">check_w</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_date</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_spec</span> <span class="o">=</span> <span class="n">spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">basic_indices</span> <span class="o">=</span> <span class="n">basic_indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span> <span class="o">=</span> <span class="n">ics_indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics</span> <span class="o">=</span> <span class="n">ics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span> <span class="o">=</span> <span class="n">ics_fv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span> <span class="o">=</span> <span class="n">ics_rank</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_codes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_all</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_filter</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">print_obj</span> <span class="o">=</span> <span class="n">PrintOnce</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_flag</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_flag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">check_w</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">w</span><span class="o">.</span><span class="n">isconnected</span><span class="p">():</span>
+                <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_spec_id</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MkvSpec.gen_spec_param"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.gen_spec_param">[文档]</a>    <span class="k">def</span> <span class="nf">gen_spec_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        | 为w.wset函数提供输入参数字段</span>
+<span class="sd">        | 要求两个参数:</span>
+<span class="sd">        </span>
+<span class="sd">        * field固定为&quot;sectorconstituent&quot;.</span>
+<span class="sd">        * options为&quot;date&quot;和&quot;sctorid&quot;以&quot;;&quot;连接成的字符串.</span>
+
+<span class="sd">        :param id: 需要获取股票成分的控件代码.</span>
+
+<span class="sd">        :return: field, options.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opt</span> <span class="o">=</span> <span class="s2">&quot;date=</span><span class="si">{}</span><span class="s2">;sectorid=</span><span class="si">{}</span><span class="s2">;field=wind_code,sec_name&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_date</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
+        <span class="n">mkv_helper_func</span><span class="o">.</span><span class="n">printt</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.field}</span><span class="s2">;</span><span class="si">{opt}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flag</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">opt</span></div>
+
+<div class="viewcode-block" id="MkvSpec.gen_fields_param"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.gen_fields_param">[文档]</a>    <span class="k">def</span> <span class="nf">gen_fields_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        | 为w.wss生成需要的输入参数字段，并检验该输入字段是否被系统支持.</span>
+<span class="sd">        | 需要参数为：</span>
+
+<span class="sd">        * codes:可以是list或者以&quot;,&quot;连接的字符串.</span>
+<span class="sd">        * fields:可以是list或者以&quot;,&quot;连接的字符串，包含需要提取的基本面指标字段.</span>
+<span class="sd">        * options:其他与指标相关的参数设定.</span>
+
+<span class="sd">        :param fields: list，包含用户输入的基本面指标字段.</span>
+<span class="sd">        :param parses: dict，用户输入基本面指标及对应条件关键词.</span>
+
+<span class="sd">        :return: fields, options.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rpt_date</span> <span class="o">=</span> <span class="n">get_rpt_date</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_date</span><span class="p">)</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;tradeDate=</span><span class="si">{self._date}</span><span class="s2">;industryType=2;unit=1;days=-30;currencyType=;rptDate=</span><span class="si">{self.rpt_date}</span><span class="s2">&quot;</span>
+        <span class="n">fields_alias</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">parses_</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">ff</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="n">alias_</span> <span class="o">=</span> <span class="n">FIELDS_ALIAS_DICT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ff</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">alias_</span><span class="p">:</span>
+                <span class="n">fields_alias</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">alias_</span><span class="p">)</span>
+                <span class="n">parses_</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">alias_</span><span class="p">:</span> <span class="n">parses</span><span class="p">[</span><span class="n">ff</span><span class="p">]})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">print_obj</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Warning: 参数basic_indices字段中</span><span class="si">{ff}</span><span class="s2">不在程序默认字典内，推断是用户自选指标，请谨慎确认输入合法性&quot;</span><span class="p">)</span>
+                <span class="n">fields_alias</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ff</span><span class="p">)</span>
+                <span class="n">parses_</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ff</span><span class="p">:</span> <span class="n">parses</span><span class="p">[</span><span class="n">ff</span><span class="p">]})</span>
+        <span class="k">return</span> <span class="n">fields_alias</span><span class="p">,</span> <span class="n">parses_</span><span class="p">,</span> <span class="n">options</span></div>
+
+<div class="viewcode-block" id="MkvSpec.fields_parse"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.fields_parse">[文档]</a>    <span class="k">def</span> <span class="nf">fields_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        获得基本面筛选变量及其对应条件.</span>
+
+<span class="sd">        :return: a list--&gt;基本面指标字段, a list--&gt;每个元素为a tuple-&gt;(field, operator, number) eg. [(pe, &quot;&gt;=&quot;, 18), (roe, &quot;&gt;&quot;, 0.05)].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">fields_</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">indices</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)]</span>
+        <span class="n">parses</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ff</span> <span class="ow">in</span> <span class="n">fields_</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;([^&gt;=&lt;]*)([&gt;&lt;=]*)([\d.]*)&quot;</span><span class="p">,</span> <span class="n">ff</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">groups</span><span class="p">())</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> \
+                <span class="n">f</span><span class="s2">&quot;fields parsing loss critical components in &#39;</span><span class="si">{ff}</span><span class="s2">&#39;, expect 3, get {len(res.groups())}&quot;</span>
+            <span class="n">parses</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="mi">3</span><span class="p">])})</span>
+            <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="n">mkv_helper_func</span><span class="o">.</span><span class="n">printt</span><span class="p">(</span><span class="n">parses</span><span class="p">,</span> <span class="n">flag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_flag</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span></div>
+
+<div class="viewcode-block" id="MkvSpec.get_spec"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.get_spec">[文档]</a>    <span class="k">def</span> <span class="nf">get_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        根据重新筛选股票周期，清空上一次的环境设置,并创建新的环境.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># 由于回测期间公用一个spec object，需要在每次更新股票池的时候清空上一次的记录</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_codes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="p">,</span> <span class="s2">&quot;need to call check_spec_id() to get spec id in WindPy&quot;</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wset</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">gen_spec_param</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span><span class="o">.</span><span class="n">Data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_codes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_names</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># 配对后去重</span>
+        <span class="n">res_</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_codes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_names</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_codes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">res_</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">res_</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">res_</span></div>
+
+<div class="viewcode-block" id="MkvSpec.get_industry_df"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.get_industry_df">[文档]</a>    <span class="k">def</span> <span class="nf">get_industry_df</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        获得股票所属二级行业.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_codes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics</span><span class="p">,</span>
+              <span class="n">f</span><span class="s2">&quot;tradeDate=</span><span class="si">{self._date}</span><span class="s2">;industryType=2&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_filter</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_codes</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;INDUSTRY&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MkvSpec.get_basic_fields"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.get_basic_fields">[文档]</a>    <span class="k">def</span> <span class="nf">get_basic_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">industry</span><span class="p">,</span> <span class="n">_codes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        一次性获取股票全部基本面变量信息，获取数据量较大可能超过限制.</span>
+
+<span class="sd">        .. deprecated:: v0.6.3</span>
+<span class="sd">           Use :func:`Mkv_spec.MkvSpec.get_basic_fields_v2` instead.</span>
+
+<span class="sd">        :param industry: str, 所属wind二级行业.</span>
+<span class="sd">        :param _codes: list, 股票代码.</span>
+
+<span class="sd">        :return: pandas.DataFrame, 经过初步基本面条件筛选后的股票数据.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields_parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span><span class="p">[</span><span class="n">industry</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)])</span>
+        <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span><span class="p">,</span> <span class="n">options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_fields_param</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">parses</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_codes</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([])</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="n">_codes</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">Fields</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">columns</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">Data</span><span class="p">))</span>
+        <span class="n">df_all</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">_codes</span><span class="p">)</span>
+        <span class="n">filter_str</span> <span class="o">=</span> <span class="s2">&quot;&amp;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">f</span><span class="s2">&quot;({ff.upper()} </span><span class="si">{parses[ff][0]}</span><span class="s2"> </span><span class="si">{parses[ff][1]}</span><span class="s2">)&quot;</span> <span class="k">for</span> <span class="n">ff</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">])</span>
+        <span class="c1"># 初步筛选</span>
+        <span class="n">df_filter</span> <span class="o">=</span> <span class="n">df_all</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">filter_str</span><span class="p">)</span>
+        <span class="c1"># exec(f&#39;df_filter = df_all[{filter_str}]&#39;)</span>
+        <span class="k">return</span> <span class="n">df_filter</span></div>
+
+<div class="viewcode-block" id="MkvSpec.get_basic_fields_v2"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.get_basic_fields_v2">[文档]</a>    <span class="k">def</span> <span class="nf">get_basic_fields_v2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">industry</span><span class="p">,</span> <span class="n">_codes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        优化数据提取流程，前一个筛选条件筛选后的股票，作为提取下一个变量的标的以减少总的数据需求.</span>
+
+<span class="sd">        :param industry: str, wind二级行业名.</span>
+<span class="sd">        :param _codes: list, 股票代码.</span>
+
+<span class="sd">        :return: pandas.DataFrame, 初步筛选后的数据表.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields_parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_indices</span><span class="p">[</span><span class="n">industry</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)])</span>
+        <span class="n">fields</span><span class="p">,</span> <span class="n">parses</span><span class="p">,</span> <span class="n">options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_fields_param</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">parses</span><span class="p">)</span>
+        <span class="n">df_filter</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([],</span> <span class="n">index</span><span class="o">=</span><span class="n">_codes</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ff</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_codes</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">df_filter</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="n">_codes</span><span class="p">,</span> <span class="n">ff</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">Fields</span>
+            <span class="c1"># content = dict(zip(columns, res.Data))</span>
+            <span class="n">df_filter</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">filter_str</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;({ff.upper()} </span><span class="si">{parses[ff][0]}</span><span class="s2"> </span><span class="si">{parses[ff][1]}</span><span class="s2">)&quot;</span>
+            <span class="c1"># 初步筛选</span>
+            <span class="n">df_filter</span> <span class="o">=</span> <span class="n">df_filter</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">filter_str</span><span class="p">)</span>
+            <span class="n">_codes</span> <span class="o">=</span> <span class="n">df_filter</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="c1"># exec(f&#39;df_filter = df_all[{filter_str}]&#39;)</span>
+        <span class="k">return</span> <span class="n">df_filter</span></div>
+
+<div class="viewcode-block" id="MkvSpec.industry_filter"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.industry_filter">[文档]</a>    <span class="k">def</span> <span class="nf">industry_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        | 在初步筛选后的数据表内，取出对应二级行业数据</span>
+<span class="sd">        | 确保行业内排序变量已被提取</span>
+<span class="sd">        | 二级行业内进行分组</span>
+
+<span class="sd">        .. deprecated:: v0.6.3</span>
+<span class="sd">           Use :func:`Mkv_spec.MkvSpec.industry_filter_v2` instead.</span>
+
+<span class="sd">        :return: list，最终入选股票列表.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_filter_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df_filter</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;INDUSTRY&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">tb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">df_filter_group</span><span class="p">:</span>
+            <span class="n">icodes</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">idf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_basic_fields</span><span class="p">(</span><span class="n">industry</span><span class="o">=</span><span class="n">ii</span><span class="p">,</span> <span class="n">_codes</span><span class="o">=</span><span class="n">icodes</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{ii}</span><span class="s2">:</span><span class="si">{idf.shape[0]}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">idf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">ics_fv</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="n">idf</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="p">],</span>
+                      <span class="n">f</span><span class="s2">&quot;tradeDate=</span><span class="si">{self._date}</span><span class="s2">;&quot;</span>
+                      <span class="n">f</span><span class="s2">&quot;industryType=2;unit=1;days=-30;currencyType=;rptDate=</span><span class="si">{self.rpt_date}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">idf</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span> <span class="o">=</span> <span class="n">ics_fv</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">rank_</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;=</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">))</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                     <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">rank_</span><span class="p">,]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">h</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span>
+                <span class="k">if</span> <span class="n">h</span> <span class="o">&lt;</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                         <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">h</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                          <span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span></div>
+
+<div class="viewcode-block" id="MkvSpec.industry_filter_v2"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.industry_filter_v2">[文档]</a>    <span class="k">def</span> <span class="nf">industry_filter_v2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        | 在初步筛选后的数据表内，取出对应二级行业数据</span>
+<span class="sd">        | 确保行业内排序变量已被提取</span>
+<span class="sd">        | 二级行业内进行分组</span>
+<span class="sd">        | 内部调用Mkv_spec.MkvSpec.get_basic_fields_v2.</span>
+
+<span class="sd">        :return: list，最终入选股票列表.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_filter_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df_filter</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;INDUSTRY&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">tb</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">df_filter_group</span><span class="p">:</span>
+            <span class="n">icodes</span> <span class="o">=</span> <span class="n">tb</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">idf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_basic_fields_v2</span><span class="p">(</span><span class="n">industry</span><span class="o">=</span><span class="n">ii</span><span class="p">,</span> <span class="n">_codes</span><span class="o">=</span><span class="n">icodes</span><span class="p">)</span>
+            <span class="c1"># print(&quot;初步筛选后行业分布&quot;)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{ii}</span><span class="s2">:</span><span class="si">{idf.shape[0]}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">idf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">ics_fv</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wss</span><span class="p">(</span><span class="n">idf</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="p">],</span>
+                      <span class="n">f</span><span class="s2">&quot;tradeDate=</span><span class="si">{self._date}</span><span class="s2">;&quot;</span>
+                      <span class="n">f</span><span class="s2">&quot;industryType=2;unit=1;days=-30;currencyType=;rptDate=</span><span class="si">{self.rpt_date}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">idf</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span> <span class="o">=</span> <span class="n">ics_fv</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">rank_</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;=</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span><span class="p">))</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                     <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">rank_</span><span class="p">,]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">h</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ics_rank</span>
+                <span class="k">if</span> <span class="n">h</span> <span class="o">&lt;</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">ids</span> <span class="o">=</span> <span class="n">idf</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ics_fv</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                         <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">h</span><span class="p">:</span><span class="nb">min</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">idf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                          <span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pool_codes</span></div>
+
+<div class="viewcode-block" id="MkvSpec.check_spec_id"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.check_spec_id">[文档]</a>    <span class="k">def</span> <span class="nf">check_spec_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        检验glob_spec参数输入合法性.</span>
+
+<span class="sd">        :return: list, 经过检验和转换为wind模块代码后的列表.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">in</span> <span class="n">SET_ID_DICT</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SET_ID_DICT</span><span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">upper</span><span class="p">()])</span>
+            <span class="k">elif</span> <span class="n">ss</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Warning: global_spec参数输入{ss.upper()}不在程序默认范围内，推断为用户自定义输入Wind对应版块代码；&quot;</span>
+                      <span class="n">f</span><span class="s2">&quot;尝试获取板块成分&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Warning: global_spec参数输入{ss.upper()}暂不支持，已忽略&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SET_ID_DICT</span><span class="p">[</span><span class="s2">&quot;A_SHARE&quot;</span><span class="p">])</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Warning:global_spec参数输入未检测到支持的股票空间字段；应用默认参数&#39;全部A股&#39;；&quot;</span>
+                  <span class="n">f</span><span class="s2">&quot;请检查您的输入或查询文档了解支持的股票空间字段，以获得正确结果。&quot;</span><span class="p">)</span>
+        <span class="c1"># if self._spec not in SET_ID_DICT.keys():</span>
+        <span class="c1">#     self._spec_id = SET_ID_DICT.get(self._spec, SET_ID_DICT[&quot;A_SHARE&quot;])</span>
+        <span class="c1"># else:</span>
+        <span class="c1">#     self._spec_id = SET_ID_DICT.get(self._spec)</span>
+        <span class="n">mkv_helper_func</span><span class="o">.</span><span class="n">printt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flag</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span></div>
+
+<div class="viewcode-block" id="MkvSpec.get_current_codes"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.get_current_codes">[文档]</a>    <span class="k">def</span> <span class="nf">get_current_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trade_date</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        外部接口，获取重新计算仓位当日的入选股票列表.</span>
+
+<span class="sd">        :param trade_date: str, 调仓日日期.</span>
+
+<span class="sd">        :return: list，入选股票列表.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_date</span><span class="p">(</span><span class="n">trade_date</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_spec</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_industry_df</span><span class="p">()</span>
+        <span class="c1"># return self.industry_filter()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">industry_filter_v2</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MkvSpec.reset_date"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.MkvSpec.reset_date">[文档]</a>    <span class="k">def</span> <span class="nf">reset_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trade_date</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        重设调仓日.</span>
+
+<span class="sd">        :param trade_date: str, 调仓日日期.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_date</span> <span class="o">=</span> <span class="n">trade_date</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">spec_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spec_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">global_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_codes</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">global_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_names</span></div>
+
+
+<span class="c1"># helper fuc:求特定交易日期可得财务报表（仅查找年报和半年报）最新报告期</span>
+<span class="c1"># A股年报最晚披露时间4月底，因此从该年4月份末可读取上年年报</span>
+<span class="c1"># 中报最晚披露时间8月底，因此从该年8月份末可读取本年度中报</span>
+<div class="viewcode-block" id="get_rpt_date"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.get_rpt_date">[文档]</a><span class="k">def</span> <span class="nf">get_rpt_date</span><span class="p">(</span><span class="n">trade_date</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    获取保守估计的财务信息报告期.</span>
+
+<span class="sd">    :param trade_date: str, 交易日期.</span>
+
+<span class="sd">    :return: 当期交易日最早可获得的报告期.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">yy</span><span class="p">,</span> <span class="n">mm</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">trade_date</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+    <span class="n">yy</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">yy</span><span class="p">)</span>
+    <span class="n">mm</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mm</span><span class="p">)</span>
+    <span class="k">if</span> <span class="mi">4</span> <span class="o">&lt;=</span> <span class="n">mm</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="c1"># 年报披露范围内</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;{yy-1}-12-31&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{yy}</span><span class="s2">-06-30&quot;</span></div>
+
+
+<div class="viewcode-block" id="PrintOnce"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.PrintOnce">[文档]</a><span class="k">class</span> <span class="nc">PrintOnce</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    只print同一信息一次.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">global_counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        判断是否print该信息.</span>
+
+<span class="sd">        :param msg: str,带print信息.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_counter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">global_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<div class="viewcode-block" id="PrintOnce.reset_counter"><a class="viewcode-back" href="../Mkv_spec.html#Mkv_spec.PrintOnce.reset_counter">[文档]</a>    <span class="k">def</span> <span class="nf">reset_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        重置类计数器.</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_counter</span> <span class="o">=</span> <span class="mi">0</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">模块代码</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Maggie Hu.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

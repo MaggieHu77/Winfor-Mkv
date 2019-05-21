@@ -1,0 +1,7 @@
+mkv\_helper\_func module
+========================
+
+.. automodule:: mkv_helper_func
+    :members:
+    :undoc-members:
+    :show-inheritance:
