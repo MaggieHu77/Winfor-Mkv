@@ -6,6 +6,8 @@ from Mkv_constant import *
 import pandas as pd
 import re
 import mkv_helper_func
+from joblib import Parallel, delayed
+from functools import reduce
 
 
 class MkvSpec:
@@ -44,7 +46,7 @@ class MkvSpec:
         """
         | 为w.wset函数提供输入参数字段
         | 要求两个参数:
-        
+
         * field固定为"sectorconstituent".
         * options为"date"和"sctorid"以";"连接成的字符串.
 
@@ -80,7 +82,7 @@ class MkvSpec:
                 fields_alias.append(alias_)
                 parses_.update({alias_: parses[ff]})
             else:
-                self.print_obj(f"Warning: 参数basic_indices字段中{ff}不在程序默认字典内，推断是用户自选指标，请谨慎确认输入合法性")
+                # self.print_obj(f"Warning: 参数basic_indices字段中{ff}不在程序默认字典内，推断是用户自选指标，请谨慎确认输入合法性")
                 fields_alias.append(ff)
                 parses_.update({ff: parses[ff]})
         return fields_alias, parses_, options
@@ -166,6 +168,32 @@ class MkvSpec:
         :return: pandas.DataFrame, 初步筛选后的数据表.
         """
         fields, parses = self.fields_parse(self.ics_indices[industry.replace(" ", "")])
+        fields, parses, options = self.gen_fields_param(fields, parses)
+        df_filter = pd.DataFrame([], index=_codes)
+        for ff in fields:
+            if not _codes:
+                return df_filter
+            res = w.wss(_codes, ff, options)
+            columns = res.Fields
+            # content = dict(zip(columns, res.Data))
+            df_filter.loc[:,columns[0]] = res.Data[0]
+            filter_str = f"({ff.upper()} {parses[ff][0]} {parses[ff][1]})"
+            # 初步筛选
+            df_filter = df_filter.query(filter_str)
+            _codes = df_filter.index.tolist()
+        # exec(f'df_filter = df_all[{filter_str}]')
+        return df_filter
+
+    def get_basic_fields_v0(self, _codes):
+        """
+        优化数据提取流程，前一个筛选条件筛选后的股票，作为提取下一个变量的标的以减少总的数据需求.
+
+        :param industry: str, wind二级行业名.
+        :param _codes: list, 股票代码.
+
+        :return: pandas.DataFrame, 初步筛选后的数据表.
+        """
+        fields, parses = self.fields_parse(self.basic_indices)
         fields, parses, options = self.gen_fields_param(fields, parses)
         df_filter = pd.DataFrame([], index=_codes)
         for ff in fields:
@@ -271,6 +299,99 @@ class MkvSpec:
         print(f"%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化")
         return self.pool_codes
 
+    def industry_filter_v0(self):
+        """
+        | 在初步筛选后的数据表内，取出对应二级行业数据
+        | 确保行业内排序变量已被提取（不支持不同行业采用不同规则）
+        | 二级行业内进行分组
+        | 内部调用Mkv_spec.MkvSpec.get_basic_fields_v0.
+
+        :return: list，最终入选股票列表.
+        """
+        self.df_filter_group = self.df_filter.groupby("INDUSTRY")
+        self.pool_codes = []
+        for ii, tb in self.df_filter_group:
+            icodes = tb.index.tolist()
+            idf = self.get_basic_fields_v0(_codes=icodes)
+            print(f"{ii}:{idf.shape[0]}")
+            if not idf.shape[0]:
+                continue
+            if self.ics_fv not in idf.columns:
+                ics_fv = w.wss(idf.index.tolist(), [self.ics_fv],
+                               f"tradeDate={self._date};"
+                               f"industryType=2;unit=1;days=-30;currencyType=;rptDate={self.rpt_date}").Data[
+                    0]
+                idf[self.ics_fv.upper()] = ics_fv
+            if isinstance(self.ics_rank, int):
+                ids = idf.sort_values(self.ics_fv.upper(),
+                                      ascending=False).head(self.ics_rank).index.tolist()
+            elif isinstance(self.ics_rank, list):
+                rank_ = list(filter(lambda x: x <= idf.shape[0] - 1, self.ics_rank))
+                ids = idf.sort_values(self.ics_fv.upper(),
+                                      ascending=False).iloc[rank_,].index.tolist()
+            else:
+                h, t = self.ics_rank
+                if h < idf.shape[0]:
+                    ids = idf.sort_values(self.ics_fv.upper(),
+                                          ascending=False).iloc[h:min(t, idf.shape[0]),
+                          ].index.tolist()
+                else:
+                    ids = []
+            self.pool_codes.extend(ids)
+        self.pool_codes = list(set(self.pool_codes))
+        print(f"%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化")
+        return self.pool_codes
+
+    def industry_filter_v3(self):
+        """
+        | 在初步筛选后的数据表内，取出对应二级行业数据
+        | 确保行业内排序变量已被提取
+        | 二级行业内进行分组
+        | 采用并行方法加速
+        | 内部调用Mkv_spec.MkvSpec.get_basic_fields_v2.
+
+        :return: list，最终入选股票列表.
+        """
+        self.df_filter_group = self.df_filter.groupby("INDUSTRY")
+        self.pool_codes = []
+        def filter_task(tb, ii, self):
+            pd.options.mode.chained_assignment = None
+            w.start()
+            icodes = tb.index.tolist()
+            idf = self.get_basic_fields_v2(industry=ii, _codes=icodes)
+            # print("初步筛选后行业分布")
+            print(f"{ii}:{idf.shape[0]}")
+            if not idf.shape[0]:
+                return []
+            if self.ics_fv not in idf.columns:
+                ics_fv = w.wss(idf.index.tolist(), [self.ics_fv],
+                               f"tradeDate={self._date};"
+                               f"industryType=2;unit=1;"
+                               f"days=-30;currencyType=;rptDate={self.rpt_date}").Data[0]
+                idf[self.ics_fv.upper()] = ics_fv
+            if isinstance(self.ics_rank, int):
+                ids = idf.sort_values(self.ics_fv.upper(),
+                                      ascending=False).head(self.ics_rank).index.tolist()
+            elif isinstance(self.ics_rank, list):
+                rank_ = list(filter(lambda x: x <= idf.shape[0] - 1, self.ics_rank))
+                ids = idf.sort_values(self.ics_fv.upper(),
+                                      ascending=False).iloc[rank_,].index.tolist()
+            else:
+                h, t = self.ics_rank
+                if h < idf.shape[0]:
+                    ids = idf.sort_values(self.ics_fv.upper(),
+                                          ascending=False).iloc[h:min(t, idf.shape[0]),
+                          ].index.tolist()
+                else:
+                    ids = []
+            return ids
+        ids_list = Parallel(n_jobs=-1)(delayed(filter_task)(tb=tb, ii=ii, self=self) for ii,
+                                                                               tb in self.df_filter_group)
+        self.pool_codes = list(reduce(lambda x, y: x + y, ids_list))
+        self.pool_codes = list(set(self.pool_codes))
+        print(f"%本次更新获得{len(self.pool_codes)}只股票进入组合权重优化")
+        return self.pool_codes
+
     def check_spec_id(self):
         """
         检验glob_spec参数输入合法性.
@@ -308,7 +429,10 @@ class MkvSpec:
         self.get_spec()
         self.get_industry_df()
         # return self.industry_filter()
-        return self.industry_filter_v2()
+        if self.ics == "industry_gics":
+            return self.industry_filter_v3()
+        else:
+            return self.industry_filter_v0()
 
     def reset_date(self, trade_date):
         """

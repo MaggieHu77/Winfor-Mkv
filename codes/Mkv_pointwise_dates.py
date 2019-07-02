@@ -11,7 +11,7 @@ from time import sleep
 
 class BTdate(object):
     """处理回测时间点序列相关"""
-    def __init__(self, start, end, freq, rebalance_h=None):
+    def __init__(self, start, end, freq, calendar, rebalance_h=None):
         """
         初始化函数.
 
@@ -23,6 +23,7 @@ class BTdate(object):
         self._start = start
         self._end = end
         self._freq = freq
+        self._calendar = calendar
         self._rebalance_h = rebalance_h
 
     @property
@@ -38,6 +39,13 @@ class BTdate(object):
         回测结束时间.
         """
         return self._end
+
+    @property
+    def calendar(self):
+        """
+        回测结束时间.
+        """
+        return self._calendar
 
     @property
     def freq(self):
@@ -93,11 +101,10 @@ class BTdate(object):
         if not w.isconnected():
             w.start()
             sleep(3)
-        first = w.tdaysoffset(-(num_d - 1), self._start).Data[0][0].strftime("%Y-%m-%d")
+        first = w.tdaysoffset(-(num_d - 1), self._start, f"TradingCalendar={self.calendar}").Data[0][0].strftime("%Y-%m-%d")
         return first
 
-    @staticmethod
-    def get_seq_m(start, end):
+    def get_seq_m(self, start, end):
         """
         根据开始时间和结束时间，返回频率为“M"的回测任务确定新仓位时间list.
 
@@ -109,12 +116,13 @@ class BTdate(object):
         if not w.isconnected():
             w.start()
             sleep(3)
-        seq = w.tdays(start, end, "Period=M").Data[0]
+        # 将时间后推一个月
+        end = (datetime.strptime(end, "%Y-%m-%d") + relativedelta(months=1)).strftime("%Y-%m-%d")
+        seq = w.tdays(start, end, f"Period=M;TradingCalendar={self.calendar}").Data[0]
         seq = [(seq[ii].strftime("%Y-%m-%d"), ii) for ii in range(len(seq))]
-        return seq
+        return seq[:-1]
 
-    @staticmethod
-    def get_seq_w(start, end):
+    def get_seq_w(self, start, end):
         """
         根据开始时间和结束时间，返回频率为“W"的回测任务确定新仓位时间list.
 
@@ -127,7 +135,7 @@ class BTdate(object):
             w.start()
             sleep(3)
         # wind的w.tdays函数准确性较差，需要严格检验
-        seq = w.tdays(start, end, "Period=W").Data[0]
+        seq = w.tdays(start, end, "Period=W", f"TradingCalendar={self.calendar}").Data[0]
         if seq[-1].weekday() != 4:
             seq.pop()
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
@@ -142,8 +150,7 @@ class BTdate(object):
                 seq_.append((ss, 0.5))
         return seq_
 
-    @staticmethod
-    def get_seq_d(start, end):
+    def get_seq_d(self, start, end):
         """
         根据开始时间和结束时间，返回频率为“D"的回测任务确定新仓位时间list.
 
@@ -155,7 +162,7 @@ class BTdate(object):
         if not w.isconnected():
             w.start()
             sleep(3)
-        seq = w.tdays(start, end).Data[0]
+        seq = w.tdays(start, end, f"TradingCalendar={self.calendar}").Data[0]
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
         month = []
         seq_ = []
@@ -180,14 +187,17 @@ class BTdate(object):
         if not w.isconnected():
             w.start()
             sleep(3)
-        seq = w.tdays(start, end).Data[0]
+        seq = w.tdays(start, end, f"TradingCalendar={self.calendar}").Data[0]
         seq = [dd.strftime("%Y-%m-%d ") for dd in seq]
         seqq = []
         hh = HOUR_BAR
         for d in seq:
             seqq.extend([d+h for h in hh])
         # 为了使持仓周期尽量在同天
-        dd_ahead = w.tdaysoffset(-1, start).Data[0][0].strftime("%Y-%m-%d 14:00:00")
+        # debug: 不能直接用start向前推，因为start当天可能不是交易日，应当用seq[0]
+        dd_ahead = w.tdaysoffset(-1, seq[0], f"TradingCalendar={self.calendar}").Data[0][
+            0].strftime(
+            "%Y-%m-%d 14:00:00")
         seqq = [dd_ahead] + seqq
         seq = self._skip_extract(seq=seqq, skip=self.rebalance_h)
         month = []
@@ -203,7 +213,7 @@ class BTdate(object):
 
     def _eval_seq_h(self, seq_h):
         if not w.isconnected():
-            w.start()
+            self.start = w.start()
             sleep(3)
         seq = seq_h.copy()
         seq.pop(0)
@@ -212,20 +222,19 @@ class BTdate(object):
         seq.append(next_)
         return seq
 
-    @staticmethod
-    def _eval_seq_d(seq_d):
+    def _eval_seq_d(self, seq_d):
         if not w.isconnected():
             w.start()
             sleep(3)
         seq = seq_d.copy()
         seq.pop(0)
         last = seq[-1]
-        next_ = w.tdaysoffset(1, last).Data[0][0].strftime("%Y-%m-%d")
+        next_ = w.tdaysoffset(1, last, f"TradingCalendar={self.calendar}").Data[0][0].strftime(
+            "%Y-%m-%d")
         seq.append(next_)
         return seq
 
-    @staticmethod
-    def _eval_seq_w(seq_w):
+    def _eval_seq_w(self, seq_w):
         if not w.isconnected():
             w.start()
             sleep(3)
@@ -234,12 +243,11 @@ class BTdate(object):
         last = seq[-1]
         tail = (datetime(*map(int, last.split("-"))) +
                 relativedelta(months=1)).strftime("%Y-%m-%d")
-        next_ = w.tdays(last, tail, "Period=W").Data[0][1].strftime("%Y-%m-%d")
+        next_ = w.tdays(last, tail, "Period=W", f"TradingCalendar={self.calendar}").Data[0][1].strftime("%Y-%m-%d")
         seq.append(next_)
         return seq
 
-    @staticmethod
-    def _eval_seq_m(seq_m):
+    def _eval_seq_m(self, seq_m):
         if not w.isconnected():
             w.start()
             sleep(3)
@@ -248,7 +256,7 @@ class BTdate(object):
         last = seq[-1]
         tail = (datetime(*map(int, last.split("-")[:2]), 1) +
                 relativedelta(months=2)).strftime("%Y-%m-%d")
-        next_ = w.tdays(last, tail, "Period=M").Data[0][1].strftime("%Y-%m-%d")
+        next_ = w.tdays(last, tail, "Period=M", f"TradingCalendar={self.calendar}").Data[0][1].strftime("%Y-%m-%d")
         seq.append(next_)
         return seq
 
@@ -279,8 +287,7 @@ class BTdate(object):
             new_seq.pop(0)
         return new_seq
 
-    @staticmethod
-    def _get_next_hourly_eval_time_stamp(last_t, skip):
+    def _get_next_hourly_eval_time_stamp(self, last_t, skip):
         """
         helper func,用于从最后一个调仓时间点，推得最后一个评估持仓收益的eval时间点.
 
@@ -298,6 +305,6 @@ class BTdate(object):
         else:
             if not w.isconnected():
                 w.start()
-            dd_new = w.tdaysoffset(dd_plus, dd).Data[0][0].strftime("%Y-%m-%d")
+            dd_new = w.tdaysoffset(dd_plus, dd, f"TradingCalendar={self.calendar}").Data[0][0].strftime("%Y-%m-%d")
         last_eval = " ".join([dd_new, HOUR_BAR[hh_idx_new]])
         return last_eval

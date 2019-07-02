@@ -46,8 +46,11 @@ def nearestPD(A):
 
 def isPD(B):
     """Returns true when input is positive-definite, via Cholesky"""
-    try:
-        _ = la.cholesky(B)
-        return True
-    except la.LinAlgError:
-        return False
+    # try:
+    #     _ = la.cholesky(B)
+    #     return True
+    # except la.LinAlgError:
+    #     return False
+    eig1 = np.linalg.eigvals(B)
+    issd1 = bool(np.all(eig1 >= 0))
+    return issd1

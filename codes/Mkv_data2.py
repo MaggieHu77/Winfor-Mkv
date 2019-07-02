@@ -7,6 +7,7 @@ import numpy as np
 from scipy.sparse import lil_matrix
 from nearPD import nearestPD
 import pandas as pd
+from tqdm import tqdm
 import mkv_helper_func
 
 
@@ -49,13 +50,14 @@ class Stock:
         self.t = time
 
 
-def create_stocks(codes, num_d, freq, end=datetime.now().strftime("%Y-%m-%d"), q=True):
+def create_stocks(codes, num_d, freq, calendar, end=datetime.now().strftime("%Y-%m-%d"), q=True):
     """
     提取样本收益率.
 
     :param codes: 股票代码列表.
     :param num_d: 数据日期长度.
     :param freq: str,频率.
+    :param calendar: str,交易所日历时间.
     :param end: str,结束时间或本次计算时间结点.
     :param q: bool，是否是当前立刻执行运行.
 
@@ -68,65 +70,92 @@ def create_stocks(codes, num_d, freq, end=datetime.now().strftime("%Y-%m-%d"), q
         w.start()
     if freq != "H":
         if q:
-            fd = w.tdaysoffset(-(num_d - 1), today).Data[0][0]
-            td = w.tdaysoffset(-1, today).Data[0][0]
+            # 通过价格倒算收益率需要多取一天数据
+            fd = w.tdaysoffset(-num_d, today, f"TradingCalendar={calendar}").Data[0][0]
+            td = w.tdaysoffset(-1, today, f"TradingCalendar={calendar}").Data[0][0]
             res11, res12 = w.wss(",".join(codes), STOCK_SEC).Data
-            res2 = w.wsd(",".join(codes), "pct_chg", fd, td)
+            res2 = w.wsd(",".join(codes), "close", fd, td, f"TradingCalendar={calendar};PriceAdj=F")
             res3 = w.wsq(",".join(codes), "rt_pct_chg").Data[0]
+            # 将res2的收盘价数据转换为收益率数据，注意直接用小数形式不用*100变成百分数形式
+            res2.Data = close2return(res2.Data, percentage=False, tolist=True, fillna_value=0.0)
+            # 剔除多取的一个K线的时间
+            res2.Times = res2.Times[1:]
+            valid_codes = []
             for c in range(len(codes)):
-                stocks.append(Stock(codes[c], res11[c], res12[c]))
-                stocks[c].input_return(
-                    [round(r / 100, 4) if not np.isnan(r) else 0.0 for r in res2.Data[c]])
-                stocks[c].input_time([t.strftime("%Y-%m-%d") for t in res2.Times])
-                res3[c] = round(res3[c], 4)
-                stocks[c].r.append(res3[c])
-                stocks[c].t.append(today)
+                if res2.Data[c].count(0.0) < np.floor(0.3 * len(res2.Data[c])):
+                    valid_codes.append(codes[c])
+                    stocks.append(Stock(codes[c], res11[c], res12[c]))
+                    stocks[-1].input_return(res2.Data[c])
+                    stocks[-1].input_time([t.strftime("%Y-%m-%d") for t in res2.Times])
+                    res3[c] = round(res3[c], 4)
+                    stocks[-1].r.append(res3[c])
+                    stocks[-1].t.append(today)
+                else:
+                    print(f"%% {codes[c]}期间停牌天数超过70%，不进入本次优化")
         else:
-            fd = w.tdaysoffset(-(num_d - 1), end).Data[0][0]
+            fd = w.tdaysoffset(-num_d, end, f"TradingCalendar={calendar}").Data[0][0]
             td = end
             res = w.wss(",".join(codes), STOCK_SEC).Data
             res11, res12 = res
             # res11, res12 = w.wss(",".join(codes), STOCK_SEC).Data
-            res2 = w.wsd(",".join(codes), "pct_chg", fd, td)
+            res2 = w.wsd(",".join(codes), "close", fd, td, f"TradingCalendar={calendar};PriceAdj=F")
+            res2.Data = close2return(res2.Data, percentage=False, tolist=True, fillna_value=0.0)
+            res2.Times = res2.Times[1:]
+            valid_codes = []
             for c in range(len(codes)):
-                stocks.append(Stock(codes[c], res11[c], res12[c]))
-                stocks[c].input_return(
-                    [round(r / 100, 4) if not np.isnan(r) else 0.0 for r in res2.Data[c]])
-                stocks[c].input_time([t.strftime("%Y-%m-%d") for t in res2.Times])
+                # 判断是否剔除优化期间停牌时间较长的股票，thresh=0.3
+                if res2.Data[c].count(0.0) < np.floor(0.3 * len(res2.Data[c])):
+                    valid_codes.append(codes[c])
+                    stocks.append(Stock(codes[c], res11[c], res12[c]))
+                    stocks[-1].input_return(res2.Data[c])
+                    stocks[-1].input_time([t.strftime("%Y-%m-%d") for t in res2.Times])
+                else:
+                    print(f"%% {codes[c]}期间停牌天数超过70%，不进入本次优化")
     # 小时回测要特殊处理
     else:
         if q:
             # 简化起见，最好使用4的整数倍作为估计均值和方差的窗口长度
-            fd, td = get_nearest_hrange(now=today_now, num_h=num_d)
+            fd, td = get_nearest_hrange(now=today_now, num_h=num_d, calendar=calendar)
             # w.wsi函数左闭右开
             td = td[:-4] + "1" + td[-3:]
             res11, res12 = w.wss(",".join(codes), STOCK_SEC).Data
             res2 = w.wsi(",".join(codes), "pct_chg", fd, td, "barsize=60;showblank=0.0")
             res3 = w.wsq(",".join(codes), "rt_pct_chg").Data[0]
+            valid_codes = []
             for c in range(len(codes)):
-                stocks.append(Stock(codes[c], res11[c], res12[c]))
-                stocks[c].input_return(
-                    [round(r / 100, 4) if not np.isnan(r) else 0.0 for r in res2.Data[c]])
-                stocks[c].input_time([t.strftime("%Y-%m-%d %H:%M:%S") for t in res2.Times])
-                res3[c] = round(res3[c], 4)
-                stocks[c].r.append(res3[c])
-                stocks[c].t.append(today)
+                if res2.Data[c].count(0.0) < np.floor(0.3 * len(res2.Data[c])):
+                    valid_codes.append(codes[c])
+                    stocks.append(Stock(codes[c], res11[c], res12[c]))
+                    stocks[-1].input_return(
+                        [round(r, 4) if not np.isnan(r) else 0.0 for r in res2.Data[c]])
+                    stocks[-1].input_time([t.strftime("%Y-%m-%d %H:%M:%S") for t in res2.Times])
+                    res3[c] = round(res3[c], 4)
+                    stocks[-1].r.append(res3[c])
+                    stocks[-1].t.append(today)
+                else:
+                    print(f"%% {codes[c]}期间停牌天数超过70%，不进入本次优化")
+
         else:
             td = end
-            fd, _ = get_nearest_hrange(now=td, num_h=num_d)
+            fd, _ = get_nearest_hrange(now=td, num_h=num_d, calendar=calendar)
 
             # res11, res12 = w.wss(",".join(codes), STOCK_SEC).Data
             res2 = []
             # 期间可能出现停牌，导致数据缺失
             codes_ = []
-            for cc in codes:
+            tqdm_obj = tqdm(codes)
+            for cc in tqdm_obj:
+                tqdm_obj.set_description(f"extract hourly data: {cc}")
                 res22 = w.wsi(cc, "pct_chg", fd, td, "barsize=60;showblank=0.0")
                 if res22.ErrorCode != 0:
                     print(f"Warning: {cc}获取小时数据失败，时间{fd}-{td}")
                 else:
-                    codes_.append(cc)
-                    res2.append(pd.DataFrame(res22.Data[0], columns=[cc], index=list(
-                        map(lambda x: x.strftime("%Y-%m-%d %H:%M:%S"), res22.Times))))
+                    if res22.Data[0].count(0.0) < np.floor(0.3*len(res22.Data[0])):
+                        codes_.append(cc)
+                        res2.append(pd.DataFrame(res22.Data[0], columns=[cc], index=list(
+                            map(lambda x: x.strftime("%Y-%m-%d %H:%M:%S"), res22.Times))))
+                    else:
+                        print(f"%% {cc}期间停牌天数超过70%，不进入本次优化")
 
             res = w.wss(",".join(codes_), STOCK_SEC).Data
             res11, res12 = res
@@ -140,7 +169,9 @@ def create_stocks(codes, num_d, freq, end=datetime.now().strftime("%Y-%m-%d"), q
                     print(e)
                     print(codes[c])
                 stocks[c].input_time([t.strftime("%Y-%m-%d %H:%M:%S") for t in res22.Times])
-    return stocks
+            valid_codes = codes_
+    print(f"%%本次优化包含{len(valid_codes)}只个股")
+    return stocks, valid_codes
 
 
 def calc_params(stocks, short):
@@ -154,8 +185,12 @@ def calc_params(stocks, short):
     param = dict()
     param.update({"short": short})
     n = len(stocks)
-    mtx_r = [s.r for s in stocks]
+    if isinstance(stocks[0].r, pd.Series) or isinstance(stocks[0].r, pd.DataFrame):
+        mtx_r = [s.r for s in stocks]
+    else:
+        mtx_r = [pd.Series(s.r, name=s.code, index=s.t) for s in stocks]
     mtx_r_pd = pd.concat(mtx_r, axis=1)
+
     mkv_helper_func.printt(mtx_r_pd, False)
     mu = list(mtx_r_pd.mean().values.round(4))
     mkv_helper_func.printt(mu, False)
@@ -208,7 +243,7 @@ def calc_params(stocks, short):
     return param
 
 
-def get_nearest_hrange(now, num_h):
+def get_nearest_hrange(now, num_h, calendar):
     """
     根据当天需要确定下期持仓权重的时间，以及优化需要的历史K线个数，确定提取数据的开始和结束时间.
 
@@ -221,12 +256,36 @@ def get_nearest_hrange(now, num_h):
     ft = max(filter(lambda x: x < hh, ["00"]+HOUR_BAR))
     if ft == "00":
         ft = HOUR_BAR[-1]
-        dd_ = w.tdaysoffset(-1, dd).Data[0][0].strftime("%Y-%m-%d")
+        dd_ = w.tdaysoffset(-1, dd, f"TradingCalendar={calendar}").Data[0][0].strftime("%Y-%m-%d")
         idx_t = 0
     else:
         idx_t = HOUR_BAR.index(ft) + 1
         dd_ = dd
     days, idx_h = divmod(num_h-idx_t, 4)
     fh = HOUR_BAR[-idx_h]
-    ddh = w.tdaysoffset(-days-int(idx_h > 0), dd).Data[0][0].strftime("%Y-%m-%d")
+    ddh = w.tdaysoffset(-days-int(idx_h > 0), dd, f"TradingCalendar={calendar}").Data[0][0].strftime("%Y-%m-%d")
     return " ".join([ddh, fh]), " ".join([dd_, ft])
+
+
+def close2return(wsd_array, percentage=False, tolist=True, fillna_value=0.0):
+    """
+    将w.wsd提取的收盘价数据转换为收益率数据。
+
+    :param wsd_array: 2D-array，每行为股票收盘价数据。
+    :param percentage: bool, 是否以百分数形式返回。
+    :param tolist: bool, 是否已list形式返回，如果False以numpy.ndarray返回
+    :param fillna_value: float, 用来替换np,nan的值
+
+    :return: list，收益率
+    """
+    # 32位浮点数降低内存
+    returns_arr = np.squeeze(pd.DataFrame(wsd_array).T.pct_change().iloc[1:, ].fillna(
+        fillna_value).values.astype(
+        np.float32).T)
+    if percentage:
+        returns_arr = returns_arr * 100
+    if tolist:
+        returns_arr = returns_arr.tolist()
+    return returns_arr
+
+

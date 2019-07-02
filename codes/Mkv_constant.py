@@ -6,7 +6,7 @@
 """
 
 # 版本号
-VERSION = "v0.6.2.190517_beta"
+VERSION = "v0.6.4.190517_beta"
 # 一年内交易日
 N = 245
 # 历史交易日数据长度
@@ -28,6 +28,7 @@ CONF_DICT = {"dir": ["target_index", "code_file", "work_file"],
              "constraints": ["mode", "vol", "short", "max_weight", "cash_return"],
              "calculation": ["calc_time", "num_d", "start_time", "end_time", "frequency",
                              "rebalance_hour"],
+             "performance": ["benchmark"],
              "filter": ["global_spec", "basic_indices", "refresh_freq", "ics", "ics_fv",
                         "ics_rank", "energy2", "materials2", "capital_goods",
                         "commercial_prof_serv",

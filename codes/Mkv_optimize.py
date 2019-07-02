@@ -6,12 +6,17 @@ from Mkv_constant import *
 
 def optimizer(param):
     """
-    计算组合优化权重.
+        计算组合优化权重.
 
-    :param param: dict，优化算法所需要的参数.
+        .. deprecated:: v0.6.3
+           Use :func: `Mkv_optimize2.optimizer` instead.
 
-    :return: 包含现金持仓的各个资产权重.
-    """
+        '' seealso:: modules :py:mod:`Mkv_optimize`.
+
+        :param param: dict，优化算法所需要的参数.
+
+        :return: 包含现金持仓的各个资产权重.
+        """
     with mosek.Env() as env:
         with env.Task() as task:
             inf = 0.0
@@ -20,33 +25,34 @@ def optimizer(param):
             # 控制变量约束
             if param["short"]:
                 numvar = 2 * param["numvar"]
-                numcon = NUMCON
+                numcon = NUMCON + 2 * param["numvar"]
                 task.appendcons(numcon)
                 task.appendvars(numvar)
-                c = c + [-ci for ci in c]
+                c = c + [0.0] * param["numvar"]
                 if param["up"] < DEFAULT_UP:
                     bkx = [mosek.boundkey.ra] * numvar
-                    blx = [0.0] * numvar
+                    blx = [-param["up"]] * int(numvar/2) + [0.0] * int(numvar/2)
                     bux = [param["up"]] * numvar
                 else:
-                    bkx = [mosek.boundkey.lo] * numvar
-                    blx = [0.0] * numvar
+                    bkx = [mosek.boundkey.fr] * int(numvar/2) + [mosek.boundkey.lo] * int(numvar/2)
+                    blx = [inf] * int(numvar/2) + [0.0] * int(numvar/2)
                     bux = [inf] * numvar
 
                 # 约束条件类型
-                bkc = [mosek.boundkey.up, mosek.boundkey.up]
-                blc = [inf, inf]
-                buc = [1.0] + [param["vol"] ** 2 / 2]
+                bkc = [mosek.boundkey.up] + [mosek.boundkey.lo] * numvar + [mosek.boundkey.up]
+                blc = [inf, inf] + [0.0] * numvar
+                buc = [1.0] + [inf] * numvar + [param["vol"] ** 2 / 2]
                 # 需要改线性约束条件的矩阵
-                asub = [[0]] * numvar
-                aval = [[1.0]] * numvar
+                asub = [[2*k+1, 2*k+2] for k in range(int(numvar/2))] + \
+                       [[0, 2*k+1, 2*k+2] for k in range(int(numvar/2))]
+                aval = [[1.0, -1.0]] * int(numvar/2) + [[1.0, 1.0, 1.0]] * int(numvar/2)
                 for j in range(numvar):
                     task.putcj(j, c[j])
                     task.putbound(mosek.accmode.var, j, bkx[j], blx[j], bux[j])
                     task.putacol(j, asub[j], aval[j])
                 for i in range(numcon):
                     task.putbound(mosek.accmode.con, i, bkc[i], blc[i], buc[i])
-                task.putqconk(1, param["qsubi"], param["qsubj"], param["qval"])
+                task.putqconk(23, param["qsubi"], param["qsubj"], param["qval"])
                 task.putobjsense(mosek.objsense.maximize)
                 task.optimize()
                 solsta = task.getsolsta(mosek.soltype.itr)
@@ -55,13 +61,9 @@ def optimizer(param):
                 task.getxx(mosek.soltype.itr, xx)
                 if solsta == mosek.solsta.optimal or solsta == mosek.solsta.near_optimal:
                     print("%获得最优解")
-                    print(f"wi+:{xx[:int(numvar/2)]}")
-                    print(f"wi-:{xx[int(numvar/2):]}")
-                    w = list(map(lambda x, y: x-y, xx[:int(numvar/2)], xx[int(numvar/2):]))
-                    wc = 1-sum([abs(wi) for wi in w])
-                    w += [wc]
-                    print(f"cash weight:{wc}")
-                    return w
+                    print(f"wi:{xx[:int(numvar/2)]}")
+                    print(f"ui:{xx[int(numvar/2):]}")
+                    return xx[:int(numvar/2)] + [1 - sum(xx[int(numvar/2):])]
                 else:
                     print("%获取最优解失败")
                     return [0.] * (numvar/2 + 1)
@@ -76,9 +78,9 @@ def optimizer(param):
                     blx = [0.0] * numvar
                     bux = [param["up"]] * numvar
                 else:
-                    bkx = [mosek.boundkey.ra] * numvar
+                    bkx = [mosek.boundkey.lo] * numvar
                     blx = [0.0] * numvar
-                    bux = [1.0] * numvar
+                    bux = [inf] * numvar
 
                 # 约束条件类型
                 bkc = [mosek.boundkey.up, mosek.boundkey.up]
@@ -102,7 +104,6 @@ def optimizer(param):
                 if solsta == mosek.solsta.optimal or solsta == mosek.solsta.near_optimal:
                     print("%获得最优解")
                     # print(f"-constrains violation in optimal:{pviolcon}")
-                    print(f"cash weight {1-sum(xx)}")
                     return xx + [1 - sum(xx)]
                 else:
                     print("%获取最优解失败")
