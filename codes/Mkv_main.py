@@ -173,11 +173,11 @@ class Manage:
             self.calendar = w.wss(self.target_index, "exch_eng").Data[0][0]
         elif self.global_spec:
             self.input_mode = 2
-            self.read_indices()
-            self.read_refresh_freq()
             self.read_ics()
             self.read_ics_fv()
             self.read_ics_rank()
+            self.read_indices()
+            self.read_refresh_freq()
         elif self.code_dir:
             self.input_mode = 3
         else:
@@ -325,7 +325,7 @@ class Manage:
         读取分行业基本面指标筛选条件字符串.
         """
         self.indices = self.conf.get("filter", "basic_indices")
-        if self.indices == "industry_gics":
+        if self.ics == "industry_gics":
             ics = list(ICS2_DICT.keys())
             for ii in ics:
                 cond_ = self.conf.get("filter", ii)
