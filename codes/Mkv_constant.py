@@ -15,6 +15,8 @@ T = 66
 DEFAULT_VOL = 0.15
 # 默认现金收益率
 CASH_RETURN = 0.0
+# 默认交易日历
+DEFAULT_CALENDAR = "SZSE"
 # w.wsi的时间节点
 HOUR_BAR = ["09:30:00", "10:30:00", "13:00:00", "14:00:00"]
 # 默认回测开始区间
@@ -69,6 +71,13 @@ SET_ID_DICT = {"A_SHARE": "a001010100000000",
                "HK_CN": "1000023477000000",
                "US_CCS": "a005010700000000",
                "US": "1000022276000000"}
+# 常见板块前缀对应交易所，注意沪深统一用深市交易所简称
+SET_ID_EXCH = {
+    "a00101": "SZSE",
+    "a00201": "HKEX",
+    "a00401": "TWSE",
+    "a00501": "NYSE"
+}
 # 目前支持的行业分类标准代码
 ICS_LIST = ["industry_gics", "industry_citic", "industry_sw", "industry_gx", "indexname_AMAC"]
 # 目前支持检索的基本面字段

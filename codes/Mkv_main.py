@@ -51,7 +51,7 @@ class Manage:
         # only effective to hourly frequency,
         # instruct how many hour K to rebalance the portfolio
         self.rebalance_hour = None
-        self.calendar = "SZSE"
+        self.calendar = DEFAULT_CALENDAR
         self.start_t = ""
         self.end_t = ""
         # self.first_t = ""
@@ -82,6 +82,7 @@ class Manage:
         self.set_input_mode()
         self.read_work_file()
         self.read_mode()
+        self.reset_calendar(self.input_mode)
         self.read_benchmark()
         self.read_cons_vol()
         self.read_cons_up()
@@ -183,6 +184,38 @@ class Manage:
         else:
             self.input_mode = None
             raise Exception("InputModeError: Can't decide stock pools.")
+
+    def reset_calendar(self, input_mode):
+        """
+        重设交易日历，仅针对日频级别。
+        :param input_mode: int,参考set_input_mode函数
+        """
+        if input_mode == 1:
+            self.calendar = w.wss(self.target_index, 'exch_eng').Data[0][0]
+            if self.calendar is None:
+                self.calendar = DEFAULT_CALENDAR
+        elif input_mode == 2:
+            set_exch = []
+            for ss in self.global_spec:
+                try:
+                    id = SET_ID_DICT.get(ss, ss)
+                    exch = SET_ID_EXCH.get(id[:6], DEFAULT_CALENDAR)
+                except Exception:
+                    print(f"GlobalSpecWarning: 输入的'global spec': {id}参数可能存在错误")
+                finally:
+                    set_exch.append(exch)
+            set_exch = list(set(set_exch))
+            if len(set_exch) == 1:
+                self.calendar = set_exch[0]
+        elif input_mode == 3:
+            codes = read_codes(self.code_dir)
+            set_exch = w.wss(codes, "exch_eng").Data[0]
+            set_exch = list(set(set_exch))
+            if len(set_exch) == 1:
+                self.calendar = set_exch[0]
+        else:
+            raise Exception("InputModeError: Can't decide stock pools.")
+
 
     def read_work_file(self):
         """
@@ -673,7 +706,6 @@ _{['longOnly', 'short'][self.short]}_{''.join(self.start_t.split('-'))}-
                            stocks=[],
                            cash_r=self.cash_r,
                            calendar=self.calendar)
-        from numpy import dot
         col22 = ["portfolio return(%)"]
         # m_df = pd.DataFrame()
         for t in range(len(self.t_eval_seq)):
@@ -812,7 +844,8 @@ _{['longOnly', 'short'][self.short]}_{''.join(self.start_t.split('-'))}-
                                                          freq="D",
                                                          calendar=self.calendar,
                                                          percentage=True,
-                                                         tolist=True)
+                                                         tolist=True,
+                                                         sheet4=True)
                     content4 = pd.DataFrame(port_values)
                     content4["benchmark"] = benchmark_rt
                     content4.reset_index(inplace=True)
@@ -1045,7 +1078,7 @@ def lookup_w(w_panel, t, calendar, pre_w=None, pre_r=None):
 
 
 def get_benchmark_returns(benchmark, time_seq, freq, calendar, percentage, tolist,
-                          rebalance_hour=1, pre_backtest_t=""):
+                          rebalance_hour=1, pre_backtest_t="", sheet4=False):
     """
     获得给定频率和时间内的benchmark收益率数据.用close计算。
 
@@ -1057,11 +1090,36 @@ def get_benchmark_returns(benchmark, time_seq, freq, calendar, percentage, tolis
     :param tolist: bool, 是否以list形式返回，False则返回pd.Series
     :param rebalance_hour: int, 特别针对freq="H"的情况，指调仓的频率
     :param pre_backtest_t: str, 特别针对rebalance_hour >1的情况，表示上一个调仓时间
+    :param sheet4: bool,是否是写入sheet4的，if True,采用工作日，否则认为写入sheet2，采用交易日
 
     :return: list, pd.Series，benchmark的收益率序列
     """
 
-    if freq in ["M", "W", "D"]:
+    # if freq in ["M", "W", "D"]:
+    #     start_ = w.tdaysoffset(-1, time_seq[0],
+    #                            f"Period={freq};TradingCalendar={calendar}").Data[0][0].strftime(
+    #         "%Y-%m-%d")
+    #     end_ = time_seq[-1]
+    #     res = w.wsd(benchmark, "close", start_, end_,
+    #                 f"Period={freq};PriceAdj=F;TradingCalendar={calendar};showblank=0")
+    #     # 仍然需要替换最后月末的价格
+    #     end_next = w.tdaysoffset(1, end_, "TradingCalendar=%s" % calendar).Data[0][
+    #         0].strftime("%Y-%m-%d")
+    #     res1 = w.wsd(benchmark, "close", end_, end_next,
+    #                 "PriceAdj=F;showblank=0;TradingCalendar=%s" % calendar)
+    #     res.Data[0][-1] = res1.Data[0][0]
+    #     rt_seq = close2return(res.Data, percentage=percentage, tolist=tolist, fillna_value=0.0)
+    #     assert (len(res.Times) - 1) == len(time_seq), "TimeIndexError: 预测区间长度与实际获取长度不一致"
+    if freq in ["M", "W"] or (freq == "D" and sheet4):
+        start_ = w.tdaysoffset(-1, time_seq[0],
+                               f"Period={freq};Days=Weekdays").Data[0][0].strftime(
+            "%Y-%m-%d")
+        end_ = time_seq[-1]
+        res = w.wsd(benchmark, "close", start_, end_,
+                    f"Period={freq};PriceAdj=F;Days=Weekdays;showblank=0")
+        rt_seq = close2return(res.Data, percentage=percentage, tolist=tolist, fillna_value=0.0)
+        assert (len(res.Times) - 1) == len(time_seq), "TimeIndexError: 预测区间长度与实际获取长度不一致"
+    elif freq == "D" and (not sheet4):
         start_ = w.tdaysoffset(-1, time_seq[0],
                                f"Period={freq};TradingCalendar={calendar}").Data[0][0].strftime(
             "%Y-%m-%d")
@@ -1076,6 +1134,7 @@ def get_benchmark_returns(benchmark, time_seq, freq, calendar, percentage, tolis
         res.Data[0][-1] = res1.Data[0][0]
         rt_seq = close2return(res.Data, percentage=percentage, tolist=tolist, fillna_value=0.0)
         assert (len(res.Times) - 1) == len(time_seq), "TimeIndexError: 预测区间长度与实际获取长度不一致"
+
     else:
         end_ = time_seq[-1][:-4]+"1"+time_seq[-1][-3:]
         if pre_backtest_t:

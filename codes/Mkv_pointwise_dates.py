@@ -118,7 +118,9 @@ class BTdate(object):
             sleep(3)
         # 将时间后推一个月
         end = (datetime.strptime(end, "%Y-%m-%d") + relativedelta(months=1)).strftime("%Y-%m-%d")
-        seq = w.tdays(start, end, f"Period=M;TradingCalendar={self.calendar}").Data[0]
+        # seq = w.tdays(start, end, f"Period=M;TradingCalendar={self.calendar}").Data[0]
+        # 转换为使用工作日
+        seq = w.tdays(start, end, "Period=M;Days=Weekdays").Data[0]
         seq = [(seq[ii].strftime("%Y-%m-%d"), ii) for ii in range(len(seq))]
         return seq[:-1]
 
@@ -135,7 +137,9 @@ class BTdate(object):
             w.start()
             sleep(3)
         # wind的w.tdays函数准确性较差，需要严格检验
-        seq = w.tdays(start, end, "Period=W", f"TradingCalendar={self.calendar}").Data[0]
+        # seq = w.tdays(start, end, f"Period=W;TradingCalendar={self.calendar}").Data[0]
+        # 转换为工作日
+        seq = w.tdays(start, end, "Period=W;Days=Weekdays").Data[0]
         if seq[-1].weekday() != 4:
             seq.pop()
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
@@ -162,6 +166,7 @@ class BTdate(object):
         if not w.isconnected():
             w.start()
             sleep(3)
+        # 日频级别暂时不变更为工作日日历，对于假期造成的不交易，当天仓位无法变更
         seq = w.tdays(start, end, f"TradingCalendar={self.calendar}").Data[0]
         seq = [dd.strftime("%Y-%m-%d") for dd in seq]
         month = []
@@ -213,7 +218,7 @@ class BTdate(object):
 
     def _eval_seq_h(self, seq_h):
         if not w.isconnected():
-            self.start = w.start()
+            w.start()
             sleep(3)
         seq = seq_h.copy()
         seq.pop(0)
@@ -243,7 +248,12 @@ class BTdate(object):
         last = seq[-1]
         tail = (datetime(*map(int, last.split("-"))) +
                 relativedelta(months=1)).strftime("%Y-%m-%d")
-        next_ = w.tdays(last, tail, "Period=W", f"TradingCalendar={self.calendar}").Data[0][1].strftime("%Y-%m-%d")
+        # next_ = w.tdays(last, tail, f"Period=W;TradingCalendar={self.calendar}").Data[0][
+        #     1].strftime("%Y-%m-%d")
+        # 转变为工作日
+        # NOTE：之所以取序列的第二个时间，是因为last本身是周五，在序列中会被包含进去，tail是向后一个月的日期，序列第二个日期就是last的下一个周五
+        next_ = w.tdays(last, tail, "Period=W;Days=Weekdays").Data[0][
+            1].strftime("%Y-%m-%d")
         seq.append(next_)
         return seq
 
@@ -256,7 +266,10 @@ class BTdate(object):
         last = seq[-1]
         tail = (datetime(*map(int, last.split("-")[:2]), 1) +
                 relativedelta(months=2)).strftime("%Y-%m-%d")
-        next_ = w.tdays(last, tail, "Period=M", f"TradingCalendar={self.calendar}").Data[0][1].strftime("%Y-%m-%d")
+        # next_ = w.tdays(last, tail, "Period=M", f"TradingCalendar={self.calendar}").Data[0][1].strftime("%Y-%m-%d")
+        # 转变为工作日
+        next_ = w.tdays(last, tail, "Period=M;Days=Weekdays").Data[0][
+            1].strftime("%Y-%m-%d")
         seq.append(next_)
         return seq
 

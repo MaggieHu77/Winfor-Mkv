@@ -65,7 +65,7 @@ class MkvEval(object):
         """小时级别调仓周期."""
         return self._rebalance_h
 
-    def eval_returns(self,get_t_seq=False):
+    def eval_returns(self, get_t_seq=False):
         """
         在各时间段内持仓股票品种不变的情形下，应用该函数获取每个时点上每只股票对应频率的变量值.
         不直接提取收益率变量，转而由价格计算收益率
@@ -166,13 +166,21 @@ class MkvEval(object):
                     return_.append(float(rt_cum))
 
         else:
+            # start_date = w.tdaysoffset(-1, eval_date,
+            #                            f"Period={self.freq};TradingCalendar={self.calendar}").Data[0][
+            #     0].strftime(
+            #     "%Y-%m-%d")
+            # res = w.wsd(codes, "close", start_date, eval_date,
+            #             "Period=%s;showblank=0;PriceAdj=F;TradingCalendar=%s" % (self.freq,
+            #                                                                      self.calendar)).Data
+            # 转换为工作日
             start_date = w.tdaysoffset(-1, eval_date,
-                                       f"Period={self.freq};TradingCalendar={self.calendar}").Data[0][
+                                       f"Period={self.freq};Days=Weekdays").Data[
+                0][
                 0].strftime(
                 "%Y-%m-%d")
             res = w.wsd(codes, "close", start_date, eval_date,
-                        "Period=%s;showblank=0;PriceAdj=F;TradingCalendar=%s" % (self.freq,
-                                                                                 self.calendar)).Data
+                        f"Period={self.freq};showblank=0;PriceAdj=F;Days=Weekdays").Data
             # remedy last timestamp's close price
             res = self.replace_last_close(result=res, stocks=codes,
                                           end_time=eval_date, calendar=self.calendar)
@@ -200,11 +208,16 @@ class MkvEval(object):
             w.start()
             sleep(3)
         assert self._freq == "D", "ParameterError: method eval_returns_drange仅支持D为频率"
-        eval_begin = w.tdaysoffset(-1, eval_begin,
-                                       f"TradingCalendar={self.calendar}").Data[0][0].strftime(
-                "%Y-%m-%d")
+        # eval_begin = w.tdaysoffset(-1, eval_begin,
+        #                                f"TradingCalendar={self.calendar}").Data[0][0].strftime(
+        #         "%Y-%m-%d")
+        # res = w.wsd(codes, "close", eval_begin, eval_end,
+        #             f"showblank=0;PriceAdj=F;TradingCalendar={self.calendar}")
+        # 转换为工作日
+        eval_begin = w.tdaysoffset(-1, eval_begin,"Days=Weekdays").Data[0][0].strftime(
+            "%Y-%m-%d")
         res = w.wsd(codes, "close", eval_begin, eval_end,
-                    f"showblank=0;PriceAdj=F;TradingCalendar={self.calendar}")
+                    "showblank=0;PriceAdj=F;Days=Weekdays")
         res.Data = close2return(res.Data, percentage=True, tolist=True, fillna_value=0.0)
         returns = res.Data
         res.Times = res.Times[1:]
