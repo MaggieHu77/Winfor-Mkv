@@ -196,10 +196,15 @@ class Manage:
                 self.calendar = DEFAULT_CALENDAR
         elif input_mode == 2:
             set_exch = []
+            sys_sets = list(SET_ID_DICT.values())
             for ss in self.global_spec:
                 try:
                     id = SET_ID_DICT.get(ss, ss)
                     exch = SET_ID_EXCH.get(id[:6], DEFAULT_CALENDAR)
+                    # temporarily hardcode
+                    if id == "1000023477000000":
+                        exch = "HKEX"
+                    elif id ==
                 except Exception:
                     print(f"GlobalSpecWarning: 输入的'global spec': {id}参数可能存在错误")
                 finally:
